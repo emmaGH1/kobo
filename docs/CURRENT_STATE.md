@@ -19,7 +19,11 @@ Checkpoint A implemented on `core`: owner/customer/alias, pending action, append
 
 Verification: 14 Vitest tests passed (13 ledger cases + setup smoke); typecheck, lint and production build passed. Tests cover paid/partial sales, opening debt/repayment, reversal/re-entry, duplicate keys/confirms, missing amount/customer, exact integers/overflow rollback, owner isolation, expiry, edit/cancel and append-only triggers.
 
-Checkpoint B gate: Zod is not a direct dependency. Shared package.json/lockfile changes require owner coordination under AGENTS.md. Owner's current task authorizes the requested real Muse proof/live tests; no voice or WhatsApp work authorized.
+Checkpoint A commit: `d65296f`.
+
+Checkpoint B blocked at required real Muse proof: first synthetic tool-call request HTTP 400; documentation-informed revised request HTTP 404 `model_not_found` for `muse-spark-1.3`; diagnostic GET /v1/models HTTP 200 with empty model list. No successful model response or B implementation claimed. Official request/output schema inspected directly but not live-verified; evidence in `src/server/MUSE-PROOF.md`. No voice/WhatsApp work or private harness content copied.
+
+Second B gate: Zod is not a direct dependency. Shared package.json/lockfile changes require owner coordination under AGENTS.md; approval requested, no shared config edits made. Resume only after model access is resolved and Zod addition approved. Requested live sale/debtors/ambiguity acceptance tests remain unrun.
 
 ## Design lane
 Not started. Owns src/components/ and src/app/(app)/. No approved visual direction; neutral root placeholder only. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
