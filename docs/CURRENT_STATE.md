@@ -15,7 +15,11 @@
 No features implemented. No API calls were made and no voice harness files changed. HANDOVER.md intentionally starts as a blank template at the owner's request; this file records initial setup evidence.
 
 ## Core lane
-Not started. Owns src/core/, src/server/, src/app/api/, src/app/dev/, db/. Shared contract types exist; handlers, schema, arithmetic, authentication and integrations do not.
+Checkpoint A implemented on `core`: owner/customer/alias, pending action, append-only event and evidence schema; pure integer-kobo balances, debtors and daily summaries; transactional, idempotent confirmation; owner/conversation scoping, expiry, cancellation and replacement review IDs. Confirmation retries acknowledge the same committed result without appending. No UI, AI, authentication or HTTP routes yet.
+
+Verification: 14 Vitest tests passed (13 ledger cases + setup smoke); typecheck, lint and production build passed. Tests cover paid/partial sales, opening debt/repayment, reversal/re-entry, duplicate keys/confirms, missing amount/customer, exact integers/overflow rollback, owner isolation, expiry, edit/cancel and append-only triggers.
+
+Checkpoint B gate: Zod is not a direct dependency. Shared package.json/lockfile changes require owner coordination under AGENTS.md. Owner's current task authorizes the requested real Muse proof/live tests; no voice or WhatsApp work authorized.
 
 ## Design lane
 Not started. Owns src/components/ and src/app/(app)/. No approved visual direction; neutral root placeholder only. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
