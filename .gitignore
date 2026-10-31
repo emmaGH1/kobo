@@ -1,0 +1,45 @@
+# Dependencies and build output
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+*.log
+.pnpm-store/
+
+# Secrets: only the reviewed empty example may be tracked
+.env*
+!.env.example
+*.pem
+*.key
+
+# Private storage, SQLite (including journals), audio and evaluation output
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.[mM]4[aA]
+*.[mM][pP]3
+*.[mM][pP]4
+*.[oO][gG][gG]
+*.[oO][pP][uU][sS]
+*.[wW][aA][vV]
+*.[wW][eE][bB][mM]
+*.[aA][aA][cC]
+*.[fF][lL][aA][cC]
+*.[aA][iI][fF]*
+*.[aA][mM][rR]
+*.[cC][aA][fF]
+*.[pP][cC][mM]
+*.[wW][mM][aA]
+*.[oO][gG][aA]
+private/
+recordings/
+results/
+runs/
+local/
+kobo-voice-test/
+.DS_Store
