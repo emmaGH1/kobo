@@ -1,0 +1,25 @@
+[Unit]
+Description=Kobo Next.js application
+After=network.target
+
+[Service]
+Type=simple
+User=builder
+Group=builder
+WorkingDirectory=/home/builder/.t3/projects/kobo/kobo-app
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=HOME=/home/builder
+Environment=PATH=/home/builder/.local/share/pi-node/current/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-/home/builder/.t3/projects/kobo/kobo-app/.env.local
+ExecStart=/home/builder/.local/share/pi-node/current/bin/node /home/builder/.t3/projects/kobo/kobo-app/node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/builder/.t3/projects/kobo/kobo-app/.next /home/builder/.t3/projects/kobo/kobo-app/private
+
+[Install]
+WantedBy=multi-user.target
