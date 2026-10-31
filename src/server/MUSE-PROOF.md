@@ -16,5 +16,31 @@ The tool-calling reference recommends `POST https://api.meta.ai/v1/responses`, B
 
 No successful function-call response received. No model-created pending action or ledger write occurred. Raw provider responses and credentials are not tracked. Model access/account provisioning is unresolved; do not build a parser on an assumed successful format or silently use another model.
 
+## Billing-fix follow-up — still blocked
+Owner reported that billing/card verification was fixed and authorized a catalog retry, one five-minute delay if empty, and Zod installation.
+
+1. `GET https://api.meta.ai/v1/models`, Bearer authentication: HTTP 200, `data` was `[]`.
+2. Waited 300 seconds, then repeated the same GET exactly once: HTTP 200, `data` was still `[]`.
+
+`muse-spark-1.3` was not listed. There was no HTTP error payload in these two catalog checks; the failure is an empty catalog, not a new model-not-found response. Per the owner's catalog-first gate, no further POST/tool-call attempt was made. Previous POST error remains HTTP 404, `model_not_found`, `The requested model was not found.` No fallback model or additional paid retry was attempted. Successful tool-call request/response format remains unverified.
+
+## Provider boundary (implemented, mocked tests only)
+`src/server/model-provider.ts` exports `ModelProvider` and `ResponsesModelProvider`. `MODEL_BASE_URL`, `MODEL_ID`, and `MODEL_API_KEY` are required server environment configuration; `.env.example` contains public defaults for the URL/model and no secret. No credential is copied into the app or committed. Importing the module makes no network requests. There are no automatic retries; requests have a 60-second timeout, reject redirects, and use `store: false` on Responses requests.
+
+The transport's documented, not live-verified POST JSON is:
+
+```json
+{
+  "model": "<MODEL_ID>",
+  "input": [{ "role": "user", "content": "<text>" }],
+  "tools": [{ "type": "function", "name": "list_debtors", "description": "Read debtors", "parameters": { "type": "object", "properties": {}, "additionalProperties": false } }],
+  "tool_choice": "auto",
+  "max_output_tokens": 1024,
+  "store": false
+}
+```
+
+The module validates configuration, request structure and model catalog with Zod. It returns Responses JSON as `unknown`: no tool-output parser or ledger execution is implemented before successful live proof. Per-tool argument Zod validation is still checkpoint B work, not satisfied by transport validation. Mock fixtures are explicitly not live provider evidence. Operator errors preserve HTTP status/code/detail, redact the API key, and do not log provider bodies. Swapping **Responses-compatible** models/providers is an env-only change; a provider using another protocol needs a new adapter implementing the interface.
+
 ## Resume gate
-Owner resolves model access and authorizes adding Zod to shared package.json/lockfile. Then run one bounded real tool-call proof before implementing checkpoint B. A documented format alone does not satisfy the live-proof acceptance criterion.
+Zod approval is resolved and installed. Owner must resolve the still-empty catalog/account access. Then confirm `muse-spark-1.3` is listed and run one bounded real tool-call proof before implementing checkpoint B. A documented format or mocked provider test alone does not satisfy the live-proof acceptance criterion.
