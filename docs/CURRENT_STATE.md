@@ -29,6 +29,8 @@ Installed Zod (approved package.json/lockfile changes). Added server-side ModelP
 
 Dedicated Kobo credential follow-up: owner saved key in ignored .env.local. Both catalog checks explicitly loaded that file (not the harness), separated by 300 seconds, returned HTTP 200 with an empty model list; configured model absent. No further POST attempted and no code changed. Credential-source change did not resolve access; account entitlement/provisioning remains unverified. Owner should test dashboard/playground on billing-fixed account and contact Meta support if access remains empty. No secrets displayed or tracked. This follow-up is docs-only; prior 23-test/typecheck/lint/build evidence above was not rerun.
 
+Owner-approved catalog bypass: after screenshot showed working Muse playground, owner authorized one minimal Responses call with dedicated Kobo key (`model: muse-spark-1.3`, `input: Reply with OK.`). Actual result HTTP 404, code `model_not_found`, message `The requested model was not found.`, request ID `faa9e48e-9115-497d-907e-f55d04b1e435`. No tool schema supplied, no follow-up call or retry. Thus dedicated-key inference independently fails, not merely catalog enumeration. Official base URL/model/auth and local credential loading/format checks match docs; account/project/key entitlement not verified. Next action: compare non-secret playground generated code and same team/project key scope, then Meta support with request ID if matching. Docs-only evidence update; no runtime changes or suite rerun.
+
 ## Design lane
 Not started. Owns src/components/ and src/app/(app)/. No approved visual direction; neutral root placeholder only. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
 

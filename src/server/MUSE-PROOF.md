@@ -33,6 +33,29 @@ Owner saved a credential in ignored `.env.local` through a hidden terminal promp
 
 Changing the credential source did not resolve access. This makes a harness-only credential-source issue less likely but does not establish which account owns the supplied key or prove a specific Meta-side fault. Next diagnostic is the billing-fixed account's dashboard/playground and, if needed, Meta support for an empty authenticated model catalog. No more blind retries.
 
+## Owner-approved catalog bypass — minimal inference failed
+Owner supplied screenshot evidence that `muse-spark-1.3` responds in their team/project playground. Directly inspected overview, authentication, quickstart and list-model documentation. Official examples use `https://api.meta.ai/v1`, Bearer authorization and model `muse-spark-1.3`; no extra team/project header is documented in those examples. Local non-secret checks confirmed official base URL/model, documented key structure, no surrounding whitespace/line breaks, correct .env.local loading, and owner-only credential file permissions. These checks do not establish account/project identity or key entitlement.
+
+Owner explicitly approved bypassing the catalog gate for one minimal inference request, followed by tool-call proof only on success. Using Kobo's dedicated .env.local credential:
+
+```http
+POST https://api.meta.ai/v1/responses
+Authorization: Bearer <server-side key, not recorded>
+Content-Type: application/json
+```
+
+```json
+{"model":"muse-spark-1.3","input":"Reply with OK."}
+```
+
+Result: HTTP 404. Request ID: `faa9e48e-9115-497d-907e-f55d04b1e435`.
+
+```json
+{"error":{"code":"model_not_found","message":"The requested model was not found.","param":null,"type":"invalid_request_error"}}
+```
+
+No tool definitions were sent, so this failure is independent of tool-schema formatting. No tool-call follow-up or retry was made. Playground access and API-key access disagree; the exact cause remains unverified. Next step: compare the playground's generated code (endpoint/model/header names, no secrets) and verify this key belongs to that same team/project. If those match, escalate to Meta support with the request ID. The empty catalog is not the sole blocker: dedicated-key inference now independently fails too.
+
 ## Provider boundary (implemented, mocked tests only)
 `src/server/model-provider.ts` exports `ModelProvider` and `ResponsesModelProvider`. `MODEL_BASE_URL`, `MODEL_ID`, and `MODEL_API_KEY` are required server environment configuration; `.env.example` contains public defaults for the URL/model and no secret. No credential is copied into the app or committed. Importing the module makes no network requests. There are no automatic retries; requests have a 60-second timeout, reject redirects, and use `store: false` on Responses requests.
 
