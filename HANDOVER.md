@@ -15,8 +15,11 @@ Fonts were checked with fontTools for the ₦ glyph and tnum: Familjen Grotesk p
 ## Probe build (2026-11-01)
 Landing page built: hero + scripted chat, how it works, safety example, footer. Files: src/app/{page,layout,globals.css,fonts,icons}, src/components/{ui,kobo,chat,landing}. Verified: typecheck, eslint, 11 vitest, production build pass; rendered at 390 and 1366 widths with no horizontal overflow and no console output; chat flow clicked through (amount question, review, save, debtor list, sample voice). See DESIGN.md section 10.
 
+## v2 redesign (2026-11-01)
+The owner rated v1 1/10. The landing was rebuilt with the Walos layout, the Lavender/Graphite theme, Geist Serif and an interactive WhatsApp-on-iPhone hero; logo round 2 used concept C provisionally. Verified: typecheck, eslint, 11 vitest, build pass; rendered at 390 and 1440 with no overflow; phone flow clicked through (amount question, review, save, debtors list sheet, history, sample voice). Screens are in docs/design/probe-v2/.
+
 ## Blockers / unresolved decisions
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 
 ## Next single action
-Owner reviews the probe (docs/design/probe/*.png, or run `pnpm build && pnpm start`). On approval: core builds /api/demo/* and ReplyView, then swap the scripted engine for the real client.
+Owner reviews the v2 probe (docs/design/probe-v2/) and picks logo A, B or C from logo-review-r2.png. On approval: core builds /api/demo/* and ReplyView, then swap the scripted engine for the real client.

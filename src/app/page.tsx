@@ -1,15 +1,13 @@
-import { Footer } from "@/components/landing/footer";
-import { Hero, TopBar } from "@/components/landing/hero";
-import { HowItWorks } from "@/components/landing/how-it-works";
-import { Safety } from "@/components/landing/safety";
+import { Features, Footer, Hero, HowItWorks, Nav, Safety } from "@/components/landing/sections";
 
 export default function Home() {
   return (
     <>
-      <TopBar />
+      <Nav />
       <main>
         <Hero />
         <HowItWorks />
+        <Features />
         <Safety />
       </main>
       <Footer />

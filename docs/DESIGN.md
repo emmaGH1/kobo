@@ -1,8 +1,46 @@
 # Kobo design direction
 
-Status: **approved by the owner on 2026-11-01. Logo B (coin o) picked.** Everything below is locked unless the owner reopens it. Every amount, name and date below is sample copy for layout only. None of it is real data, a metric or a result.
+Status: **v2 in review** (see the v2 section directly below, which overrides v1 where they conflict). Every amount, name and date below is sample copy for layout only. None of it is real data, a metric or a result.
 
 Lane note: the owner asked for this file on the `design` branch, even though `docs/` normally belongs to the docs lane. Building the landing page touches shared files (`src/app/page.tsx`, `src/app/layout.tsx` for fonts, `src/app/globals.css` for tokens) and needs `/api/demo/*` from core. All of that needs coordination before the build step (see section 9).
+
+
+## v2 direction (2026-11-01). Supersedes sections 1, 2, 5's colours, 6 and 8 where they conflict
+
+The owner rated the v1 probe 1/10 and redirected it: a Walos-style landing, the "Lavender Haze / Soft Graphite" theme, the product shown working in WhatsApp on an iPhone (as in the Mofin reference), Geist Serif as the site font, and a reinvented, premium logo. Sections 3 (naira rules), 4 (WhatsApp message formats), 7 and 9 still apply unchanged.
+
+**Tokens** (`src/app/globals.css`):
+
+| Token | Hex | Use | Contrast on paper |
+|---|---|---|---|
+| `paper` | `#EBE1CF` | page (theme beige) | n/a |
+| `paper-2` | `#E2D6C0` | sunken areas; `#F3ECDF` for the nav pill and light cards | n/a |
+| `ink` | `#2D2C2A` | soft graphite: text, dark sections, primary buttons | 10.8:1 |
+| `ink-2` | `#5E5A52` | secondary text, second clause of headlines | 5.3:1 |
+| `lav` | `#92A9E1` | Lavender Haze, the one accent: hero panel, safety card, logo tile. **Only graphite text on lavender** (6.0:1) | n/a |
+| `lav-ink` | `#3D52A0` | focus ring | 5.6:1 |
+| `paid` / `owed` | `#2F6B48` / `#A63D2A` | money direction only | 4.9:1 each |
+
+**Type:** **Geist Serif** (Vercel, OFL, from the `geist` npm package, a single weight 400 with an "Element Shape" axis) is the default font for the whole site, display and body. **Geist Sans** is used for small UI (pills, buttons, labels, captions) and for WhatsApp's own interface inside the phone. Neither has **₦**, so each is followed in the stack by a one-glyph subset: Source Serif 4 (serif) and Public Sans (sans), both OFL, under 1 KB each. Fonts are self-hosted in `src/app/fonts/`. Headlines: 46/60/64–72px, leading 1.0, tracking −0.03em, two-tone (`ink` + `ink-2`).
+
+**Shape:** the theme's **notched card**, a 28–36px-radius card with its top-right corner cut out and a small tile (arrow or label) sitting in the notch (`src/components/kobo/notch-card.tsx`). Pills are fully rounded with a 1px graphite outline. At most one lavender notched card per screen.
+
+**Landing** (`src/components/landing/sections.tsx`):
+1. Pill nav: logo, How it works / What it keeps / Safety / GitHub, and a graphite "Try Kobo" pill.
+2. Hero (Walos): a left-aligned eyebrow pill, the headline, the sub-line, two pill buttons and a fact row with hairline dividers (2 languages · 3 choices before saving · 0 amounts guessed: product rules, not metrics). On the right, a lavender notched panel holds an **iPhone running WhatsApp**: Kobo's business chat, interactive, driven by the scripted engine. Reply buttons and list sheets mimic WhatsApp iOS, the mic sends the sample voice note, and tap-to-try chips, a language toggle and a "Scripted preview · n/12 left" counter sit under the phone. On mobile, the fact row moves below the phone.
+3. How it works: a graphite band with 3 steps (AI interprets / You confirm / Code calculates).
+4. What it keeps: a bento of notched cards. The feature set was chosen after looking at Kudi, AbegNo, Kika and SabiStock: they all offer voice/Pidgin entry and debt tracking, so Kobo leads with those and then shows what sets it apart (it quotes back what it heard, asks about ambiguous figures, undoes without erasing, and code does the maths). No stock, photo or payment features are claimed.
+5. Safety: a lavender notched card, "Kobo never guesses money", with the ₦3,800 / ₦38,000 question.
+6. Graphite footer.
+
+Nothing from the references' fabricated content was used: no testimonials, pricing, stats or hand photo. The iPhone and WhatsApp chrome are drawn in code. Real WhatsApp colours (#EFE7DD wallpaper, #D9FDD3 outgoing) appear only inside the phone, because that is the channel.
+
+**Logo round 2** (`docs/design/logo-review-r2.png`), all from Geist Serif outlines:
+- **A · Naira k:** the ₦'s two bars across the k. Weakest; reads as a strikethrough.
+- **B · Full stop:** "kobo." with a lavender square stop.
+- **C · Notched page (used provisionally, owner to confirm):** a lavender notched tile holding a graphite serif k, with a graphite stub in the notch, plus the "kobo" serif wordmark. It is the WhatsApp profile photo in the phone mockup, the favicon and the app icon. Mark SVG: `docs/design/logo-r2-mark.svg`; component: `src/components/kobo/logo.tsx`.
+
+Round 1's coin-o logo (section 8) is retired. Its files remain in `docs/design/logo/` for history.
 
 ---
 

@@ -2,31 +2,27 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 
-const familjen = localFont({
-  src: "./fonts/FamiljenGrotesk.ttf",
-  variable: "--font-familjen",
-  weight: "400 700",
-  display: "swap",
-});
-
-const plexMono = localFont({
-  src: "./fonts/IBMPlexMono-Regular.ttf",
-  variable: "--font-plex-mono",
-  weight: "400",
-  display: "swap",
-});
+/** Geist Serif (Vercel, OFL) is the site's default face. It has no ₦ glyph, so a one-glyph
+ *  subset of Source Serif 4 follows it in the stack; Geist Sans gets the same from Public Sans. */
+const geistSerif = localFont({ src: "./fonts/GeistSerifVF.woff2", variable: "--font-geist-serif", display: "swap" });
+const nairaSerif = localFont({ src: "./fonts/naira-serif.woff2", variable: "--font-naira-serif", display: "swap", preload: false });
+const geistSans = localFont({ src: "./fonts/Geist-Variable.woff2", variable: "--font-geist-sans", weight: "100 900", display: "swap" });
+const nairaSans = localFont({ src: "./fonts/naira-sans.woff2", variable: "--font-naira-sans", display: "swap", preload: false });
 
 export const metadata: Metadata = {
   title: "Kobo — your market notebook, now inside WhatsApp",
   description:
-    "Talk or type your sales in Pidgin or English. Kobo writes them down, asks when a figure is unclear, and saves only when you say so.",
+    "Send a voice note in Pidgin or English. Kobo writes it in your book, asks when a figure is unclear, and saves only when you say so.",
 };
 
-export const viewport: Viewport = { themeColor: "#F4F0E6" };
+export const viewport: Viewport = { themeColor: "#EBE1CF" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${familjen.variable} ${plexMono.variable}`}>
+    <html
+      lang="en"
+      className={`${geistSerif.variable} ${nairaSerif.variable} ${geistSans.variable} ${nairaSans.variable}`}
+    >
       <body className="min-h-svh bg-paper text-ink antialiased">{children}</body>
     </html>
   );

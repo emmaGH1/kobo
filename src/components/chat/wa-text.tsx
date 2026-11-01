@@ -11,7 +11,7 @@ function inline(text: string): ReactNode[] {
       );
     if (part.length > 2 && part.startsWith("_") && part.endsWith("_"))
       return (
-        <em key={i} className="text-ink-2">
+        <em key={i} className="opacity-70">
           {part.slice(1, -1)}
         </em>
       );
@@ -19,7 +19,7 @@ function inline(text: string): ReactNode[] {
   });
 }
 
-export function WaText({ body }: { body: string }) {
+export function WaText({ body, className = "" }: { body: string; className?: string }) {
   const lines = body.split("\n");
   const out: ReactNode[] = [];
   let i = 0;
@@ -31,7 +31,7 @@ export function WaText({ body }: { body: string }) {
       while (i < lines.length && !lines[i].startsWith("```")) block.push(lines[i++]);
       i++;
       out.push(
-        <pre key={out.length} className="my-1 overflow-x-auto font-mono text-[13px] leading-6 text-ink">
+        <pre key={out.length} className="my-1 overflow-x-auto font-mono text-[11.5px] leading-[1.5]">
           {block.join("\n")}
         </pre>,
       );
@@ -39,7 +39,7 @@ export function WaText({ body }: { body: string }) {
       const q: string[] = [];
       while (i < lines.length && lines[i].startsWith("> ")) q.push(lines[i++].slice(2));
       out.push(
-        <blockquote key={out.length} className="border-l-2 border-rule pl-3 italic text-ink-2">
+        <blockquote key={out.length} className="border-l-[3px] border-black/15 pl-2 italic opacity-80">
           {q.join(" ")}
         </blockquote>,
       );
@@ -50,7 +50,7 @@ export function WaText({ body }: { body: string }) {
         <ul key={out.length}>
           {items.map((t, k) => (
             <li key={k} className="flex gap-2">
-              <span aria-hidden className="text-ink-3">–</span>
+              <span aria-hidden className="opacity-50">•</span>
               <span>{inline(t)}</span>
             </li>
           ))}
@@ -67,12 +67,12 @@ export function WaText({ body }: { body: string }) {
         </ol>,
       );
     } else if (line.trim() === "") {
-      out.push(<div key={out.length} className="h-3.5" aria-hidden />);
+      out.push(<div key={out.length} className="h-2" aria-hidden />);
       i++;
     } else {
       out.push(<p key={out.length}>{inline(line)}</p>);
       i++;
     }
   }
-  return <div className="text-[16px] leading-7">{out}</div>;
+  return <div className={className}>{out}</div>;
 }

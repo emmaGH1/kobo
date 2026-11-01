@@ -4,21 +4,20 @@
 
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-familjen), ui-sans-serif, system-ui, sans-serif;
-    --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+    --font-heading: var(--font-serif);
+    --font-serif: var(--font-geist-serif), var(--font-naira-serif), Georgia, serif;
+    --font-sans: var(--font-geist-sans), var(--font-naira-sans), ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
     --color-paper: var(--paper);
-    --color-sunken: var(--paper-sunken);
-    --color-rule: var(--rule);
+    --color-paper-2: var(--paper-2);
     --color-ink: var(--ink);
     --color-ink-2: var(--ink-2);
     --color-ink-3: var(--ink-3);
-    --color-biro: var(--biro);
-    --color-biro-soft: var(--biro-soft);
+    --color-lav: var(--lav);
+    --color-lav-soft: var(--lav-soft);
+    --color-lav-ink: var(--lav-ink);
     --color-paid: var(--paid);
     --color-owed: var(--owed);
-    --color-night: var(--night);
-    --color-biro-night: var(--biro-night);
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
@@ -46,20 +45,19 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Kobo tokens (docs/DESIGN.md). One accent: biro. Green = paid and red = owed, nothing else. */
+/* Kobo tokens v2 (docs/DESIGN.md): beige paper, soft graphite, lavender haze.
+   Lavender is the one accent; on lavender use graphite text only. Green = paid, red = owed. */
 :root {
-    --paper: #F4F0E6;
-    --paper-sunken: #EAE4D6;
-    --rule: #C9D3E3;
-    --ink: #1B1A17;
-    --ink-2: #5C574D;
-    --ink-3: #847E72;
-    --biro: #2A3A9E;
-    --biro-soft: #DEE2F5;
-    --paid: #1D6E43;
-    --owed: #B0261C;
-    --night: #1B1A17;
-    --biro-night: #9AA6F2;
+    --paper: #EBE1CF;
+    --paper-2: #E2D6C0;
+    --ink: #2D2C2A;
+    --ink-2: #5E5A52;
+    --ink-3: #7D776C;
+    --lav: #92A9E1;
+    --lav-soft: #C9D4F0;
+    --lav-ink: #3D52A0;
+    --paid: #2F6B48;
+    --owed: #A63D2A;
 
     /* shadcn variables mapped onto the Kobo palette */
     --background: var(--paper);
@@ -68,18 +66,18 @@
     --card-foreground: var(--ink);
     --popover: var(--paper);
     --popover-foreground: var(--ink);
-    --primary: var(--biro);
+    --primary: var(--ink);
     --primary-foreground: var(--paper);
-    --secondary: var(--paper-sunken);
+    --secondary: var(--paper-2);
     --secondary-foreground: var(--ink);
-    --muted: var(--paper-sunken);
+    --muted: var(--paper-2);
     --muted-foreground: var(--ink-2);
-    --accent: var(--biro-soft);
+    --accent: var(--lav-soft);
     --accent-foreground: var(--ink);
     --destructive: var(--owed);
-    --border: var(--rule);
-    --input: var(--rule);
-    --ring: var(--biro);
+    --border: color-mix(in srgb, var(--ink) 18%, transparent);
+    --input: color-mix(in srgb, var(--ink) 25%, transparent);
+    --ring: var(--lav-ink);
     --radius: 0.5rem;
 }
 
@@ -91,19 +89,14 @@
     @apply bg-background text-foreground;
     }
   html {
-    @apply font-sans;
+    @apply font-serif;
     }
 }
 
-/* The ruled-line motif: 28px rhythm, drawn as lines (not a colour wash). */
-.ruled {
-  background-image: repeating-linear-gradient(to bottom, transparent 0 27px, var(--rule) 27px 28px);
-  background-position: 0 -1px;
-}
 .tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
-body { font-feature-settings: "tnum" 0; line-height: 1.65; }
+html { font-family: var(--font-serif); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .msg-in { animation: msg-in 120ms ease-out both; }
+  .msg-in { animation: msg-in 140ms ease-out both; }
 }
 @keyframes msg-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
