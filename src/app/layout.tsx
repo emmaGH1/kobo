@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "Send a voice note in Pidgin or English. Kobo writes it in your book, asks when a figure is unclear, and saves only when you say so.",
 };
 
-export const viewport: Viewport = { themeColor: "#EBE1CF" };
+export const viewport: Viewport = { themeColor: "#FFFFFF" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

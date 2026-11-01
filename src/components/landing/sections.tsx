@@ -9,7 +9,7 @@ const GITHUB = "https://github.com/emmaGH1/kobo";
 export function Nav() {
   return (
     <div className={`${wrap} pt-4`}>
-      <nav className="flex h-14 items-center justify-between rounded-full border border-ink/10 bg-[#F3ECDF] pl-4 pr-2 font-sans">
+      <nav className="flex h-14 items-center justify-between rounded-full border border-ink/10 bg-[#F6F6F3] pl-4 pr-2 font-sans">
         <a href="#top" aria-label="Kobo home">
           <KoboLogo className="h-7 w-auto text-ink" />
         </a>
@@ -192,7 +192,7 @@ export function Features() {
           { k: "Every evening", t: "Your day on one card", d: "A receipt-style summary lands in your chat each evening: credit given, money collected, who owes the most." },
           { k: "Mistakes", t: "Undo without erasing", d: "Tap Undo and Kobo adds a correction, after you confirm. The original entry stays in the book." },
         ].map((f) => (
-          <div key={f.t} className="rounded-[28px] border border-ink/15 bg-[#F3ECDF] p-7 lg:col-span-4">
+          <div key={f.t} className="rounded-[28px] border border-ink/15 bg-[#F6F6F3] p-7 lg:col-span-4">
             <p className="font-sans text-[13px] text-ink-2">{f.k}</p>
             <h3 className="mt-3 text-[26px] leading-[1.1] tracking-[-0.015em]">{f.t}</h3>
             <p className="mt-3 font-sans text-[15px] leading-[1.6] text-ink-2">{f.d}</p>

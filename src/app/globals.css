@@ -48,8 +48,8 @@
 /* Kobo tokens v2 (docs/DESIGN.md): beige paper, soft graphite, lavender haze.
    Lavender is the one accent; on lavender use graphite text only. Green = paid, red = owed. */
 :root {
-    --paper: #EBE1CF;
-    --paper-2: #E2D6C0;
+    --paper: #FFFFFF;
+    --paper-2: #F4F4F1;
     --ink: #2D2C2A;
     --ink-2: #5E5A52;
     --ink-3: #7D776C;

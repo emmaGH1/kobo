@@ -13,10 +13,10 @@ The owner rated the v1 probe 1/10 and redirected it: a Walos-style landing, the 
 
 | Token | Hex | Use | Contrast on paper |
 |---|---|---|---|
-| `paper` | `#EBE1CF` | page (theme beige) | n/a |
-| `paper-2` | `#E2D6C0` | sunken areas; `#F3ECDF` for the nav pill and light cards | n/a |
+| `paper` | `#FFFFFF` | page background: white (owner preference, 2026-11-01; replaced the theme beige `#EBE1CF`) | n/a |
+| `paper-2` | `#F4F4F1` | sunken areas; `#F6F6F3` for the nav pill and light cards | n/a |
 | `ink` | `#2D2C2A` | soft graphite: text, dark sections, primary buttons | 10.8:1 |
-| `ink-2` | `#5E5A52` | secondary text, second clause of headlines | 5.3:1 |
+| `ink-2` | `#5E5A52` | secondary text, second clause of headlines | 6.9:1 on white |
 | `lav` | `#92A9E1` | Lavender Haze, the one accent: hero panel, safety card, logo tile. **Only graphite text on lavender** (6.0:1) | n/a |
 | `lav-ink` | `#3D52A0` | focus ring | 5.6:1 |
 | `paid` / `owed` | `#2F6B48` / `#A63D2A` | money direction only | 4.9:1 each |
@@ -33,7 +33,7 @@ The owner rated the v1 probe 1/10 and redirected it: a Walos-style landing, the 
 5. Safety: a lavender notched card, "Kobo never guesses money", with the ₦3,800 / ₦38,000 question.
 6. Graphite footer.
 
-Nothing from the references' fabricated content was used: no testimonials, pricing, stats or hand photo. The iPhone and WhatsApp chrome are drawn in code. Real WhatsApp colours (#EFE7DD wallpaper, #D9FDD3 outgoing) appear only inside the phone, because that is the channel.
+Nothing from the references' fabricated content was used: no testimonials, pricing, stats or hand photo. The iPhone and WhatsApp chrome are drawn in code. Real WhatsApp colours (#EFE7DD plain default chat background, no doodle; #D9FDD3 outgoing) appear only inside the phone and the chat snippets, because that is the channel.
 
 **Logo round 2** (`docs/design/logo-review-r2.png`), all from Geist Serif outlines:
 - **A · Naira k:** the ₦'s two bars across the k. Weakest; reads as a strikethrough.
