@@ -27,6 +27,8 @@ Billing-fix follow-up: owner approved Zod and bounded catalog retries. GET /v1/m
 
 Installed Zod (approved package.json/lockfile changes). Added server-side ModelProvider interface and ResponsesModelProvider transport, configured only by MODEL_BASE_URL/MODEL_ID/MODEL_API_KEY, with public defaults in .env.example. No automatic retries, timeout/redirect safeguards, credential-redacted errors, Zod configuration/catalog/request validation. Raw successful Responses payload remains unknown until real proof; no extraction/parser or ledger execution added. Env-only model swapping supports Responses-compatible providers; other protocols require an adapter. 9 new mocked provider tests; total 23 tests passed, plus typecheck, lint and production build. Evidence/limitations in src/server/MUSE-PROOF.md. No credentials copied or committed.
 
+Dedicated Kobo credential follow-up: owner saved key in ignored .env.local. Both catalog checks explicitly loaded that file (not the harness), separated by 300 seconds, returned HTTP 200 with an empty model list; configured model absent. No further POST attempted and no code changed. Credential-source change did not resolve access; account entitlement/provisioning remains unverified. Owner should test dashboard/playground on billing-fixed account and contact Meta support if access remains empty. No secrets displayed or tracked. This follow-up is docs-only; prior 23-test/typecheck/lint/build evidence above was not rerun.
+
 ## Design lane
 Not started. Owns src/components/ and src/app/(app)/. No approved visual direction; neutral root placeholder only. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
 

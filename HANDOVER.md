@@ -19,5 +19,7 @@ After owner reported billing/card fix: GET /v1/models HTTP 200 with `data: []`; 
 
 Zod approval resolved and dependency installed. ModelProvider interface and env-configured Responses transport implemented; no live response parser/extraction before proof. MODEL_BASE_URL/MODEL_ID/MODEL_API_KEY stay server-side. Env-only swaps work for Responses-compatible APIs; incompatible protocols need an adapter. No auth, message service/routes, extraction or /dev page built because proof is a pre-build gate. Three requested live acceptance messages remain unrun.
 
+Dedicated credential follow-up: owner saved key in ignored Kobo .env.local; both new catalog checks explicitly used that file instead of the harness. HTTP 200 with model IDs [] before and after one 300-second wait. No POST attempted; model still absent. Credential-source change did not resolve the issue. Docs-only follow-up; no code or tests changed, prior suite not rerun. Evidence added to MUSE-PROOF.md.
+
 ## Next single action
-Owner resolves the still-empty Muse catalog/account access. Then verify muse-spark-1.3 is listed and prove one real tool call before implementing B. Zod approval no longer blocks. Do not claim checkpoint B complete or use the ledger with real customer data; authentication, backup/recovery and HTTP API boundaries are not implemented.
+Owner tests the billing-fixed account's dashboard/playground and contacts Meta support if models remain unavailable; resolve the still-empty Muse catalog/account access. Then verify muse-spark-1.3 is listed and prove one real tool call before implementing B. Zod approval no longer blocks. Do not claim checkpoint B complete or use the ledger with real customer data; authentication, backup/recovery and HTTP API boundaries are not implemented.

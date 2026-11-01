@@ -24,6 +24,15 @@ Owner reported that billing/card verification was fixed and authorized a catalog
 
 `muse-spark-1.3` was not listed. There was no HTTP error payload in these two catalog checks; the failure is an empty catalog, not a new model-not-found response. Per the owner's catalog-first gate, no further POST/tool-call attempt was made. Previous POST error remains HTTP 404, `model_not_found`, `The requested model was not found.` No fallback model or additional paid retry was attempted. Successful tool-call request/response format remains unverified.
 
+## Dedicated Kobo credential follow-up — still blocked
+Owner saved a credential in ignored `.env.local` through a hidden terminal prompt. Tests explicitly loaded Kobo's `.env.local`, not the voice harness environment. No credential values were displayed or compared.
+
+- First GET /models using MODEL_BASE_URL and MODEL_API_KEY: HTTP 200, model IDs `[]`; configured MODEL_ID not listed.
+- Waited 300 seconds and retried exactly once: HTTP 200, model IDs `[]`; configured MODEL_ID still not listed.
+- No error payload reported by either catalog check. No POST/tool-call attempt made, per catalog-first gate.
+
+Changing the credential source did not resolve access. This makes a harness-only credential-source issue less likely but does not establish which account owns the supplied key or prove a specific Meta-side fault. Next diagnostic is the billing-fixed account's dashboard/playground and, if needed, Meta support for an empty authenticated model catalog. No more blind retries.
+
 ## Provider boundary (implemented, mocked tests only)
 `src/server/model-provider.ts` exports `ModelProvider` and `ResponsesModelProvider`. `MODEL_BASE_URL`, `MODEL_ID`, and `MODEL_API_KEY` are required server environment configuration; `.env.example` contains public defaults for the URL/model and no secret. No credential is copied into the app or committed. Importing the module makes no network requests. There are no automatic retries; requests have a 60-second timeout, reject redirects, and use `store: false` on Responses requests.
 
