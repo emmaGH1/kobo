@@ -1,23 +1,24 @@
-// Kobo logo, concept C "notched page" (round 2). Generated from Geist Serif outlines
-// (docs/design/logo-review-r2.png). Parts are separate elements so the demo can animate them.
+// Kobo logo, concept C "notched page" (owner pick, 2026-11-01). Generated from
+// docs/design/logo/logo.svg (build-logo.py, Geist Serif outlines). The tile's k is the
+// first letter of the word: the lockup reads [k]obo. Parts stay separate for animation.
 const TILE = "M170,0 H600 Q670,0 670,70 V260 Q670,330 740,330 H930 Q1000,330 1000,400 V830 Q1000,1000 830,1000 H170 Q0,1000 0,830 V170 Q0,0 170,0 Z";
 const K = "M31 4 93 41Q104 48 108.0 54.0Q112 60 112 73V654Q112 672 109.5 676.0Q107 680 93 685L24 708V712L187 770H196V247L426 470Q433 477 433 481Q433 487 421 493L359 526V530H546V526L485 479L320 318L543 6V0H437L258 257L196 197V73Q196 60 200.5 54.0Q205 48 219 41L293 4V0H31Z";
 const O = "M50 265Q50 346 83.5 409.0Q117 472 174.5 507.0Q232 542 302 542Q372 542 429.5 507.0Q487 472 520.5 409.0Q554 346 554 265Q554 184 520.5 121.0Q487 58 429.5 23.0Q372 -12 302 -12Q232 -12 174.5 23.0Q117 58 83.5 121.0Q50 184 50 265ZM455 267Q455 379 416.0 444.0Q377 509 304 509Q230 509 190.0 443.5Q150 378 150 265Q150 152 189.5 86.5Q229 21 302 21Q375 21 415.0 87.0Q455 153 455 267Z";
 const B = "M166 39 103 -15H97V654Q97 672 94.5 676.0Q92 680 78 685L9 708V712L172 770H181V470Q236 542 328 542Q393 542 444.0 506.5Q495 471 523.5 410.5Q552 350 552 276Q552 195 518.0 129.0Q484 63 425.5 25.5Q367 -12 297 -12Q213 -12 166 39ZM319 23Q362 23 395.0 50.5Q428 78 446.0 128.0Q464 178 464 243Q464 322 438.5 376.0Q413 430 372.0 456.5Q331 483 285 483Q232 483 181 444V158Q190 88 230.5 55.5Q271 23 319 23Z";
 
-function Tile({ k = "var(--ink)", tile = "var(--lav)", stub = "var(--ink)" }: { k?: string; tile?: string; stub?: string }) {
+function Tile({ stub = "var(--ink)" }: { stub?: string }) {
   return (
     <>
-      <path id="tile" d={TILE} fill={tile} />
+      <path id="tile" d={TILE} fill="var(--lav)" />
       <rect id="stub" x="716" y="0" width="284" height="284" rx="70" fill={stub} />
-      <path id="tile-k" transform="translate(164.1 916) scale(1.08 -1.08)" d={K} fill={k} />
+      <path id="k" transform="translate(164.1 916) scale(1.08 -1.08)" d={K} fill="var(--ink)" />
     </>
   );
 }
 
 type Props = { className?: string; title?: string; tone?: "light" | "dark" };
 
-/** Square app mark: lavender notched page holding the k. Also Kobo's WhatsApp profile photo. */
+/** Square app mark: the lavender notched page holding the k. Also the WhatsApp profile photo. */
 export function KoboMark({ className, title = "Kobo" }: Props) {
   return (
     <svg viewBox="0 0 1000 1000" className={className} role="img" aria-label={title}>
@@ -26,16 +27,15 @@ export function KoboMark({ className, title = "Kobo" }: Props) {
   );
 }
 
-/** Mark + Geist Serif wordmark. The wordmark uses currentColor. */
+/** Lockup: the mark's k plus "obo" in Geist Serif, reading "kobo". "obo" uses currentColor. */
 export function KoboLogo({ className, title = "Kobo", tone = "light" }: Props) {
   return (
-    <svg viewBox="0 0 3470 1000" className={className} role="img" aria-label={title}>
+    <svg viewBox="0 0 2947 1000" className={className} role="img" aria-label={title}>
       <Tile stub={tone === "dark" ? "var(--paper)" : "var(--ink)"} />
-      <g transform="translate(1180 880) scale(1 -1)" fill="currentColor">
-        <path d={K} />
-        <path transform="translate(530 0)" d={O} />
-        <path transform="translate(1114 0)" d={B} />
-        <path transform="translate(1686 0)" d={O} />
+      <g id="wordmark" fill="currentColor">
+        <path transform="translate(1016.0 916) scale(1.08 -1.08)" d={O} />
+        <path transform="translate(1646.7 916) scale(1.08 -1.08)" d={B} />
+        <path transform="translate(2264.5 916) scale(1.08 -1.08)" d={O} />
       </g>
     </svg>
   );

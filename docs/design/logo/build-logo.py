@@ -17,11 +17,16 @@ TILE = (f"M{R},0 H{W-n-r} Q{W-n},0 {W-n},{r} V{n-r} Q{W-n},{n} {W-n+r},{n} H{W-r
         f"V{H-R} Q{W},{H} {W-R},{H} H{R} Q0,{H} 0,{H-R} V{R} Q0,0 {R},0 Z")
 STUB = f'x="{W-n+gap}" y="0" width="{n-gap}" height="{n-gap}" rx="{r}"'
 KT = f'translate({190-kb[0]*s:.1f} 916) scale({s} {-s})'
-xs = [0, kadv + TRACK, kadv + oadv + 2 * TRACK, kadv + oadv + badv + 3 * TRACK]
-WORD_W = xs[3] + oadv
-WM = (f'<g id="wordmark" transform="translate(1180 880) scale(1 -1)" fill="{{ink}}">'
-      f'<path d="{K}"/><path transform="translate({xs[1]} 0)" d="{O}"/>'
-      f'<path transform="translate({xs[2]} 0)" d="{B}"/><path transform="translate({xs[3]} 0)" d="{O}"/></g>')
+# The tile's k IS the word's first letter: "obo" follows at the k's scale and baseline.
+GAP = 70                                   # tile edge to the first o, in tile units
+ox = [W + GAP - 50 * s, 0, 0]              # 50 = o's left side bearing (keeps optical gap)
+ox[1] = ox[0] + (oadv + TRACK) * s
+ox[2] = ox[1] + (badv + TRACK) * s
+WORD_END = ox[2] + oadv * s
+WM = (f'<g id="wordmark" fill="{{ink}}">'
+      f'<path transform="translate({ox[0]:.1f} 916) scale({s} {-s})" d="{O}"/>'
+      f'<path transform="translate({ox[1]:.1f} 916) scale({s} {-s})" d="{B}"/>'
+      f'<path transform="translate({ox[2]:.1f} 916) scale({s} {-s})" d="{O}"/></g>')
 
 def mark(tile, k, stub):
     return (f'<path id="tile" d="{TILE}" fill="{tile}"/><rect id="stub" {STUB} fill="{stub}"/>'
@@ -35,7 +40,7 @@ def svg(vb, body):
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}">{body}</svg>\n'
 
 INK, LAV, PAPER = "#2D2C2A", "#92A9E1", "#EBE1CF"
-full = f"0 0 {1180 + WORD_W:.0f} 1000"
+full = f"0 0 {WORD_END + 30:.0f} 1000"
 files = {
     "logo.svg": svg(full, mark(LAV, INK, INK) + WM.format(ink=INK)),
     "logo-dark.svg": svg(full, mark(LAV, INK, PAPER) + WM.format(ink=PAPER)),
