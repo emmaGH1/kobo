@@ -1,48 +1,51 @@
+"""Export the Kobo logo (round 2, concept C "notched page") from Geist Serif outlines.
+Usage: python build-logo.py <GeistSerif-Regular.woff2> <out_dir>   (needs fontTools + brotli)"""
 import sys
 from fontTools.ttLib import TTFont
-from fontTools.varLib.instancer import instantiateVariableFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.boundsPen import BoundsPen
-src,out=sys.argv[1],sys.argv[2]
-f=instantiateVariableFont(TTFont(src),{"wght":700})
-gs=f.getGlyphSet(); cmap=f.getBestCmap(); upm=f['head'].unitsPerEm
-def g(ch): return cmap[ord(ch)]
-def path(ch):
-    p=SVGPathPen(gs); gs[g(ch)].draw(p); return p.getCommands()
-def bounds(ch):
-    b=BoundsPen(gs); gs[g(ch)].draw(b); return b.bounds
-track=-0.045*upm
-# metrics of 'o' to size the coin
-ob=bounds('o'); ow=ob[2]-ob[0]; oh=ob[3]-ob[1]
-print('upm',upm,'o bounds',ob)
-x=0; parts=[]
-for i,ch in enumerate('kobo'):
-    adv=gs[g(ch)].width
-    if i==1:
-        # coin: circle inscribed in the o's outer bounds, slight optical reduction
-        r=min(ow,oh)/2*0.97; cx=x+(ob[0]+ob[2])/2; cy=(ob[1]+ob[3])/2
-        parts.append(('coin',f'<circle id="coin" cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="ACCENT"/>'))
-    else:
-        parts.append((ch,f'<path id="{ch}{i}" transform="translate({x:.1f} 0)" d="{path(ch)}" fill="INK"/>'))
-    x+=adv+track
-asc=f['hhea'].ascent
-kb=bounds('k'); bb=bounds('b')
-top=max(kb[3],bb[3]); bottom=min(0,ob[1])
-pad=0.06*upm
-W=x-track; minx=-pad; miny=bottom-pad; H=top-bottom+2*pad
-def svg(ids, ink, accent, vb):
-    body="\n  ".join(s for n,s in parts if n in ids).replace('INK',ink).replace('ACCENT',accent)
-    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}">\n <g transform="scale(1 -1)">\n  {body}\n </g>\n</svg>\n'
-vb_word=f"{minx:.0f} {-(top+pad):.0f} {W+2*pad:.0f} {H:.0f}"
-# mark: k + coin
-kadv=gs[g('k')].width+track
-r=min(ow,oh)/2*0.97; ccx=kadv+(ob[0]+ob[2])/2; ccy=(ob[1]+ob[3])/2
-L=kb[0]; R=ccx+r; T=max(kb[3],ccy+r); B=min(kb[1],ccy-r)
-side=max(R-L,T-B)+2*pad; cxm=(L+R)/2; cym=(T+B)/2
-mx=cxm-side/2; my=-cym-side/2
-vb_mark=f"{mx:.0f} {my:.0f} {side:.0f} {side:.0f}"
-variants={'logo':('#1B1A17','#2A3A9E'),'logo-dark':('#F4F0E6','#9AA6F2'),'logo-black':('#000','#000'),'logo-white':('#fff','#fff')}
-for name,(ink,acc) in variants.items():
-    open(f'{out}/{name}.svg','w').write(svg({'k','coin','b','o'},ink,acc,vb_word))
-    open(f'{out}/{name.replace("logo","logo-mark")}.svg','w').write(svg({'k','coin'},ink,acc,vb_mark))
-print('ok',vb_word,vb_mark)
+
+f = TTFont(sys.argv[1]); out = sys.argv[2]
+gs = f.getGlyphSet(); cmap = f.getBestCmap()
+def glyph(ch):
+    g = gs[cmap[ord(ch)]]; p = SVGPathPen(gs); g.draw(p); b = BoundsPen(gs); g.draw(b)
+    return p.getCommands(), g.width, b.bounds
+K, kadv, kb = glyph("k"); O, oadv, _ = glyph("o"); B, badv, _ = glyph("b")
+
+W = H = 1000; n = 330; R = 170; r = 70; gap = 46; s = 1.08; TRACK = -20
+TILE = (f"M{R},0 H{W-n-r} Q{W-n},0 {W-n},{r} V{n-r} Q{W-n},{n} {W-n+r},{n} H{W-r} Q{W},{n} {W},{n+r} "
+        f"V{H-R} Q{W},{H} {W-R},{H} H{R} Q0,{H} 0,{H-R} V{R} Q0,0 {R},0 Z")
+STUB = f'x="{W-n+gap}" y="0" width="{n-gap}" height="{n-gap}" rx="{r}"'
+KT = f'translate({190-kb[0]*s:.1f} 916) scale({s} {-s})'
+xs = [0, kadv + TRACK, kadv + oadv + 2 * TRACK, kadv + oadv + badv + 3 * TRACK]
+WORD_W = xs[3] + oadv
+WM = (f'<g id="wordmark" transform="translate(1180 880) scale(1 -1)" fill="{{ink}}">'
+      f'<path d="{K}"/><path transform="translate({xs[1]} 0)" d="{O}"/>'
+      f'<path transform="translate({xs[2]} 0)" d="{B}"/><path transform="translate({xs[3]} 0)" d="{O}"/></g>')
+
+def mark(tile, k, stub):
+    return (f'<path id="tile" d="{TILE}" fill="{tile}"/><rect id="stub" {STUB} fill="{stub}"/>'
+            f'<path id="k" transform="{KT}" d="{K}" fill="{k}"/>')
+def mono_mark(c):
+    # one colour: tile and stub in c, the k knocked out (transparent)
+    return (f'<defs><mask id="ko"><rect width="1000" height="1000" fill="#fff"/>'
+            f'<path transform="{KT}" d="{K}" fill="#000"/></mask></defs>'
+            f'<path d="{TILE}" fill="{c}" mask="url(#ko)"/><rect {STUB} fill="{c}"/>')
+def svg(vb, body):
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vb}">{body}</svg>\n'
+
+INK, LAV, PAPER = "#2D2C2A", "#92A9E1", "#EBE1CF"
+full = f"0 0 {1180 + WORD_W:.0f} 1000"
+files = {
+    "logo.svg": svg(full, mark(LAV, INK, INK) + WM.format(ink=INK)),
+    "logo-dark.svg": svg(full, mark(LAV, INK, PAPER) + WM.format(ink=PAPER)),
+    "logo-black.svg": svg(full, mono_mark("#000") + WM.format(ink="#000")),
+    "logo-white.svg": svg(full, mono_mark("#fff") + WM.format(ink="#fff")),
+    "logo-mark.svg": svg("0 0 1000 1000", mark(LAV, INK, INK)),
+    "logo-mark-dark.svg": svg("0 0 1000 1000", mark(LAV, INK, PAPER)),
+    "logo-mark-black.svg": svg("0 0 1000 1000", mono_mark("#000")),
+    "logo-mark-white.svg": svg("0 0 1000 1000", mono_mark("#fff")),
+}
+for name, body in files.items():
+    open(f"{out}/{name}", "w").write(body)
+print("wrote", len(files), "files")

@@ -22,4 +22,4 @@ The owner rated v1 1/10. The landing was rebuilt with the Walos layout, the Lave
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 
 ## Next single action
-Owner reviews the v2 probe (docs/design/probe-v2/) and picks logo A, B or C from logo-review-r2.png. On approval: core builds /api/demo/* and ReplyView, then swap the scripted engine for the real client.
+Logo C picked and exported (docs/design/logo/). Next: core builds /api/demo/* and ReplyView, then swap the scripted engine for the real client; record the sample voice note; build the summary card. On approval: core builds /api/demo/* and ReplyView, then swap the scripted engine for the real client.

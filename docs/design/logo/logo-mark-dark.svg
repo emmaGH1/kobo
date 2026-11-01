@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 -1047 1293 1293">
- <g transform="scale(1 -1)">
-  <path id="k0" transform="translate(0.0 0)" d="M74 0V800H236V370H284L452 600H624V594L419 320L648 6V0H459L284 250H236V0Z" fill="#F4F0E6"/>
-  <circle id="coin" cx="936.0" cy="300.0" r="287.1" fill="#9AA6F2"/>
- </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><path id="tile" d="M170,0 H600 Q670,0 670,70 V260 Q670,330 740,330 H930 Q1000,330 1000,400 V830 Q1000,1000 830,1000 H170 Q0,1000 0,830 V170 Q0,0 170,0 Z" fill="#92A9E1"/><rect id="stub" x="716" y="0" width="284" height="284" rx="70" fill="#EBE1CF"/><path id="k" transform="translate(164.1 916) scale(1.08 -1.08)" d="M31 4 93 41Q104 48 108.0 54.0Q112 60 112 73V654Q112 672 109.5 676.0Q107 680 93 685L24 708V712L187 770H196V247L426 470Q433 477 433 481Q433 487 421 493L359 526V530H546V526L485 479L320 318L543 6V0H437L258 257L196 197V73Q196 60 200.5 54.0Q205 48 219 41L293 4V0H31Z" fill="#2D2C2A"/></svg>
