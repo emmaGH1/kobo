@@ -12,8 +12,11 @@ Added docs/DESIGN.md, docs/design/logo-review-r1.png (3 logo concepts), docs/des
 ## Verification evidence
 Fonts were checked with fontTools for the ₦ glyph and tnum: Familjen Grotesk passes, Schibsted, Instrument, Geist and others fail. Palette contrast was computed (WCAG): all text tokens are ≥5.5:1 except ink-3, which is 3.5:1 and reserved for meta text. The logo sheet was rendered in headless Chromium and inspected.
 
+## Probe build (2026-11-01)
+Landing page built: hero + scripted chat, how it works, safety example, footer. Files: src/app/{page,layout,globals.css,fonts,icons}, src/components/{ui,kobo,chat,landing}. Verified: typecheck, eslint, 11 vitest, production build pass; rendered at 390 and 1366 widths with no horizontal overflow and no console output; chat flow clicked through (amount question, review, save, debtor list, sample voice). See DESIGN.md section 10.
+
 ## Blockers / unresolved decisions
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 
 ## Next single action
-Coordinate the shared files (page.tsx, layout.tsx fonts, globals.css tokens, app icons) and core's /api/demo/* plus ReplyView, then build the design probe: the landing hero with the live chat, and the WhatsApp message renderer.
+Owner reviews the probe (docs/design/probe/*.png, or run `pnpm build && pnpm start`). On approval: core builds /api/demo/* and ReplyView, then swap the scripted engine for the real client.

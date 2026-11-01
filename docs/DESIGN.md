@@ -386,3 +386,14 @@ interface ReplyView {
 `replyText` stays as the plain-text fallback. Core owns `src/core/contract.ts`, so this is their decision.
 
 **Other coordination before building:** landing route at `src/app/page.tsx` (outside the design lane), fonts via `next/font` in `src/app/layout.tsx`, tokens in `src/app/globals.css`, and a PNG renderer dependency for the summary card.
+
+## 10. Design probe build notes (2026-11-01)
+
+Built on `design` after approval: the landing hero with the live-style chat, how it works, the safety example and the footer. The summary card, web book and WhatsApp adapter are not built. Review screenshots are in `docs/design/probe/`.
+
+- **The chat is a scripted preview, not Kobo core.** `src/components/chat/demo-engine.ts` understands only the five tap-to-try phrases and the sample voice transcript; anything else gets the "unknown request" reply. It keeps money as integer kobo, calculates every balance and total in code, and saves only on an explicit `1 save`. The panel header says "Scripted preview · sample data". When core ships `/api/demo/message`, replace the engine call in `chat-panel.tsx`; the `ReplyView` type in `types.ts` is the shape section 9 asks core to produce. 11 Vitest cases cover the safety flow, reversal, no-duplicate save and formatting.
+- **Sample voice note:** the button sends the sample transcript as a voice-labelled bubble and says "audio not recorded yet". No audio file exists. It must be recorded by a consenting team member (section 6.2) before it can play.
+- **Deviation from 6.2:** on desktop the voice button sits in the chat panel footer, not under the headline.
+- **Shared files touched with owner approval:** `src/app/page.tsx`, `layout.tsx` (Familjen Grotesk and IBM Plex Mono, self-hosted from `src/app/fonts/`, no Google fetch), `globals.css` (tokens; shadcn variables mapped to the Kobo palette; sidebar/chart/dark tokens removed), app icons (`icon.png`, `apple-icon.png`, `favicon.ico`, `opengraph-image.png`). shadcn `button` and `input` were added with the project's own shadcn CLI. No dependencies changed.
+- **Plex Mono ships Regular only**; the 500 weight mentioned in section 2 is not used.
+- **Open items:** `metadataBase` needs the real domain (build warns); the GitHub link points at the repo, which is private until published; Pidgin copy still needs a native-speaker check; step 3's "Ref K-0001" and the card figures are sample copy.
