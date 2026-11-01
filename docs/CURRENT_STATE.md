@@ -18,7 +18,7 @@ No features implemented. No API calls were made and no voice harness files chang
 Not started. Owns src/core/, src/server/, src/app/api/, src/app/dev/, db/. Shared contract types exist; handlers, schema, arithmetic, authentication and integrations do not.
 
 ## Design lane
-Design probe round 1 written: docs/DESIGN.md plus logo review sheet. **Awaiting owner approval.** No UI built. Owns src/components/ and src/app/(app)/. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
+Design direction approved by the owner on 2026-11-01. Logo B (coin o) picked and exported to docs/design/logo/. No UI built. Owns src/components/ and src/app/(app)/. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
 
 ## Docs lane
 Initial setup documents exist. Official rubric/submission requirements remain unverified.
