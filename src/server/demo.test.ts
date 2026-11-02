@@ -40,6 +40,15 @@ it('routes reviews and explicit actions to the same service; rejects foreign and
   const response=await (await call('message',{text:'1'},a)).json();
   expect(response.remaining).toBe(12); // deterministic commands and actions consume no model credits
 });
+it('runs notebook uploads through the quota wrapper and same explicit-confirmation service',async()=>{
+  const {store,call,start,cookie,requestToolResponse}=setup();const c=cookie(await start());
+  requestToolResponse.mockResolvedValueOnce({status:'completed',output:[{type:'function_call',name:'read_notebook',arguments:JSON.stringify({rows:[{line_text:'New Customer 1200',customer_name:'New Customer',amount_text:'1200',uncertain_name:false,uncertain_amount:false}]})}]});
+  const upload={mimeType:'image/png',imageBase64:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII='};
+  const review=await (await call('notebook',upload,c)).json();expect(review.remaining).toBe(11);expect(review.pending.flags).toEqual([]);
+  await call('action',{action:'confirm',pendingId:review.pending.id,version:1},c);
+  await call('notebook',upload,c);expect(requestToolResponse).toHaveBeenCalledTimes(1);
+  expect(store.sqlite.prepare('SELECT COUNT(*) AS n FROM ledger_events WHERE pending_id=?').get(review.pending.id)).toEqual({n:1});
+});
 it('previews Friday reminders using the demo book without saving money or spending model credits',async()=>{
   const {store,call,start,cookie,requestToolResponse}=setup();const c=cookie(await start());
   const before=(store.sqlite.prepare('SELECT COUNT(*) AS n FROM ledger_events').get() as {n:number}).n;

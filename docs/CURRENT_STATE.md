@@ -16,6 +16,9 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Ordered continuation checkpoint 4
+Notebook PNG/JPEG import now has private authenticated and quota-bound demo routes, inline configured Responses image transport, bounded/metadata-stripped in-memory images, opening-debt row parsing, ambiguity/name/repeated-row blocks, full explicit review and digest idempotency. 109 offline tests passed, 1 live skipped; typecheck/lint/build passed. Image payload tested with mocked transport only: no live Muse-image/handwriting accuracy proof or real customer image; no photo UI added. See HANDOVER for payload, limits and safety boundaries.
+
 ### Ordered continuation checkpoint 3
 Due-day 08:00 Lagos persistent outbox, opt-in/out, stable reminder IDs, unsent drafts, amount-first Already paid review and one-day snooze implemented. Same-batch partial payments allocated before FIFO payments; settled/reversed debts suppressed. Token-authenticated `/api/reminders/tick` queues jobs only: external scheduler, approved utility template and WhatsApp delivery are NOT configured or live-tested. Demo `/api/demo/skip-friday` simulates next due-day notice without advancing global time or model calls. 103 offline tests passed, 1 live skipped; typecheck/lint/build passed. See HANDOVER for delivery limits and configuration.
 

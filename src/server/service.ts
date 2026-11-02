@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Reminders } from './reminders';
+import { extractNotebook, notebookImage } from './notebook';
 import { add, balances, dailySummary, debtors, history, lastPaidAt, owingDays, type Customer } from '../core/ledger';
 import { parseNaira, sourceHasSpan } from '../core/naira';
 import { type BookkeepingService, type MessageReply, type PendingActionInput, type EditPendingInput, type MessageInput, type ClarificationInput, type InteractiveInput } from '../core/contract';
@@ -123,6 +124,12 @@ function render(p: Pending, store: LedgerStore, lang: Language): MessageReply {
     text = copy.reviewText(lang, list, p.flags.length ? copy.blockedNote(lang, p.flags) : undefined);
     interactive = copy.reviewInteractive(lang, p.id, text, p.flags.length > 0);
   }
+  if(p.rawInput.startsWith('Notebook photo import\n')) {
+    const banner=copy.pick(lang,'*Notebook photo import* · Check every name and amount. Nothing is saved yet.','*Notebook photo import* · Check every name and amount. I never save anything.');
+    text=`${banner}\n\n${text}`;
+    // Never truncate a multi-row import review behind a button card.
+    interactive=text.length<=1024 && interactive?{...interactive,body:`${banner}\n\n${interactive.body}`} : undefined;
+  }
   return { replyText: text, ...(interactive ? { interactive } : {}), pending: { id: p.id, summary, flags: p.flags, ...(p.flags.length ? { clarifications: p.flags.map(question => ({ question, ...(options && question === openFlag && question === p.flags.find(f => f === openFlag) ? { options: options.map(({ label, value }) => ({ label, value })) } : {}) })) } : {}) } };
 }
 /** Deliberately narrow deterministic grammar. Model output alone never clears transaction ambiguity. */
@@ -245,6 +252,38 @@ export class Service implements BookkeepingService {
     const entries = p.entries.map((e, i) => i !== q.entry && !same(e) ? e : { ...e, customerCandidates: undefined, ...(selected ? { customerId: selected.id, customerName: undefined } : {}) });
     const note = selected ? `${text} (${selected.name})` : text;
     return this.replace(p, input, text, note, entries, p.flags.filter(f => f !== CUSTOMER_FLAG || entries.some(e => e.customerCandidates?.length)), lang);
+  }
+  /** Trusted upload adapter only. Images stay in memory, metadata stripped, no client paths/URLs. */
+  async handleNotebook(input: {channel:'web'|'whatsapp';senderId:string;bytes:Uint8Array;mime:unknown}):Promise<MessageReply> {
+    this.check(input);
+    const lang=this.storedLanguage(input.channel,input.senderId);
+    const image=notebookImage(input.bytes,input.mime);
+    const key=`notebook:${input.channel}:${input.senderId}:${image.digest}`;
+    const existing=this.store.sqlite.prepare('SELECT id FROM pending_actions WHERE owner_id=? AND idempotency_key=?').get(this.ownerId,key) as {id:string}|undefined;
+    if(existing){const p=this.store.pending(this.ownerId,existing.id)!;return p.status==='confirmed'?this.confirm({...input,pendingId:p.id}):p.status==='review'&&p.expiresAt>Date.now()?render(p,this.store,lang):{replyText:copy.errors.expired(lang)};}
+    const current=this.store.current(this.ownerId,input.channel,input.senderId);
+    if(current.length) return render(current[0],this.store,lang);
+    let rows:Awaited<ReturnType<typeof extractNotebook>>;
+    try{rows=await extractNotebook(this.provider,image.image);}catch{return {replyText:copy.errors.down(lang)};}
+    const flags:string[]=[];
+    const names=new Set<string>();
+    const entries:EntryDraft[]=rows.map((row,i)=>{
+      const name=row.customer_name.trim(),normal=name.toLocaleLowerCase();
+      if(names.has(normal))flags.push('Repeated customer in photo; edit to provide each outstanding balance once.');names.add(normal);
+      if(row.uncertain_name)flags.push(`Customer name unclear on notebook row ${i+1}; edit the entry.`);
+      const customer=this.store.findCustomer(this.ownerId,name);
+      const similar=customer?[]:this.store.customers(this.ownerId).filter(c=>closeName(c.name,name));
+      const amount=row.amount_text?parseNaira(row.amount_text,row.line_text):{kind:'invalid' as const};
+      const question=row.uncertain_amount||amount.kind!=='amount';
+      const flag=`Please clarify the notebook amount for ${name} (row ${i+1}).`;
+      if(question)flags.push(flag);
+      return {kind:'opening_debt',...(customer?{customerId:customer.id}:{customerName:name}),...(similar.length?{customerCandidates:similar.map(c=>c.id)}:{}),...(!question&&amount.kind==='amount'?{amountKobo:amount.kobo}:{amountQuestion:{source:row.amount_text??undefined,candidatesKobo:!row.uncertain_amount&&amount.kind==='ambiguous'?amount.candidatesKobo:[],flag}})};
+    });
+    const pending=this.store.sqlite.transaction(()=>{
+      const latest=this.store.current(this.ownerId,input.channel,input.senderId);if(latest.length)return latest[0];
+      return this.store.propose({ownerId:this.ownerId,channel:input.channel,senderId:input.senderId,idempotencyKey:key,rawInput:`Notebook photo import\n${rows.map(r=>r.line_text).join('\n')}`,entries,flags});
+    }).immediate();
+    return render(pending,this.store,lang);
   }
   async handleMessage(input: MessageInput): Promise<MessageReply> {
     this.check(input);

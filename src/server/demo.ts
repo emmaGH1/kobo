@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { outstandingDebts } from '../core/ledger';
 import { Reminders } from './reminders';
+import { decodeNotebookBody } from './notebook';
 import type { MessageReply } from '../core/contract';
 import { LedgerStore } from './ledger-store';
 import { createModelProvider, type ModelProvider } from './model-provider';
@@ -69,7 +70,7 @@ export function createDemoHandler(options: DemoOptions) {
         const part = await reader.read();
         if (part.done) break;
         size += part.value.byteLength;
-        if (size > 8192) { await reader.cancel(); return json({error:'Body too large'},413); }
+        if (size > (operation==='notebook'?2800000:8192)) { await reader.cancel(); return json({error:'Body too large'},413); }
         chunks.push(part.value);
       }
     }
@@ -113,7 +114,7 @@ export function createDemoHandler(options: DemoOptions) {
       const queued=reminders.queued(s.owner,'web',s.token,lang);
       return json({replies:queued.map(q=>({lang:lang==='pg'?'pcm':'en',kind:'buttons',body:q.reply.replyText,buttons:q.reply.interactive?.buttons})),remaining:DEMO_LIMIT-s.used,simulated:true,simulatedAt:now});
     }
-    if (!['message','action'].includes(operation)) return json({error:'Not found'},404);
+    if (!['message','action','notebook'].includes(operation)) return json({error:'Not found'},404);
     if (operation === 'message' && (typeof body.text !== 'string' || !body.text.trim() || body.text.length>4000)) return json({error:'Invalid text'},400);
     if (operation === 'action' && (typeof body.action !== 'string' || body.action.length>300)) return json({error:'Invalid action'},400);
     const lease = randomUUID();
@@ -135,7 +136,8 @@ export function createDemoHandler(options: DemoOptions) {
     const ctx = {channel:'web' as const,senderId:s.token};
     try {
       let reply: MessageReply;
-      if (operation === 'message') reply = await service.handleMessage({...ctx,text:body.text as string});
+      if (operation === 'notebook') reply = await service.handleNotebook({...ctx,...decodeNotebookBody(body)});
+      else if (operation === 'message') reply = await service.handleMessage({...ctx,text:body.text as string});
       else {
         const action = body.action as string;
         // Both opaque button ids from ReplyView and the documented structured action envelope.

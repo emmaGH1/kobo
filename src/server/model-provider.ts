@@ -27,6 +27,8 @@ const functionToolSchema = z.object({
 const requestSchema = z.object({
   input: z.string().min(1),
   tools: z.array(functionToolSchema).min(1),
+  /** Trusted adapter-built inline image, never a client URL or path. */
+  image: z.object({mime:z.enum(['image/png','image/jpeg']),base64:z.string().min(4).max(2800000).regex(/^[A-Za-z0-9+/]+={0,2}$/)}).strict().optional(),
 }).strict();
 export type ToolRequest = z.infer<typeof requestSchema>;
 
@@ -81,7 +83,7 @@ export class ResponsesModelProvider implements ModelProvider {
     // incomplete responses fail closed in Service, and the caller may choose to try again.
     return this.send('/responses', {
       model: this.config.modelId,
-      input: [{ role: 'user', content: parsed.data.input }],
+      input: [{ role: 'user', content: parsed.data.image ? [{type:'input_text',text:parsed.data.input},{type:'input_image',image_url:`data:${parsed.data.image.mime};base64,${parsed.data.image.base64}`}]:parsed.data.input }],
       tools: parsed.data.tools,
       tool_choice: 'auto',
       max_output_tokens: 4096,
