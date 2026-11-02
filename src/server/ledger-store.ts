@@ -9,6 +9,8 @@ export interface EntryDraft {
   kind: 'sale' | 'payment' | 'opening_debt' | 'reversal' | 'purchase';
   description?: string;
   customerId?: string;
+  /** Source-checked proposed new customer; created only inside confirmation transaction. */
+  customerName?: string;
   amountKobo?: number;
   reversalOf?: string;
   dueDate?: string;
@@ -84,7 +86,12 @@ export class LedgerStore {
         try { money(entry.amountKobo); } catch { flags.push('Missing or invalid amount'); }
         continue;
       }
-      if (!this.customers(ownerId).some(c => c.id === entry.customerId)) flags.push('Unknown customer');
+      if (entry.customerName) {
+        if (entry.customerId || entry.customerName.length > 200 || !entry.customerName.trim() || entry.kind === 'reversal') flags.push('Invalid new customer');
+        // Re-check at confirmation; never silently bind a newly conflicting name or alias.
+        const matches = this.sqlite.prepare(`SELECT c.id FROM customers c WHERE c.owner_id=? AND (c.name=? COLLATE NOCASE OR c.id IN (SELECT customer_id FROM customer_aliases WHERE owner_id=? AND alias=? COLLATE NOCASE))`).all(ownerId, entry.customerName, ownerId, entry.customerName);
+        if (matches.length) flags.push('Customer name now exists or is ambiguous; edit review');
+      } else if (!this.customers(ownerId).some(c => c.id === entry.customerId)) flags.push('Unknown customer');
       try { money(entry.amountKobo); } catch { flags.push('Missing or invalid amount'); }
       if (entry.dueDate !== undefined && (entry.kind !== 'sale' || !validDueDate(entry.dueDate))) flags.push('Invalid due date');
       if (entry.kind === 'reversal') {
@@ -134,6 +141,18 @@ export class LedgerStore {
         this.spent(ownerId, 0, Number.MAX_SAFE_INTEGER); // Reject aggregate overflow transactionally.
         this.sqlite.prepare("UPDATE pending_actions SET status='confirmed' WHERE id=?").run(id);
         return [];
+      }
+      const created = new Map<string, string>();
+      for (const entry of pending.entries) {
+        if (!entry.customerName) continue;
+        const key = entry.customerName.toLocaleLowerCase();
+        let customerId = created.get(key);
+        if (!customerId) {
+          customerId = randomUUID();
+          this.sqlite.prepare('INSERT INTO customers(id,owner_id,name) VALUES(?,?,?)').run(customerId, ownerId, entry.customerName);
+          created.set(key, customerId);
+        }
+        entry.customerId = customerId;
       }
       const insert = this.sqlite.prepare(`INSERT INTO ledger_events (id,owner_id,customer_id,kind,amount_kobo,reversal_of,pending_id,sequence,occurred_at,due_date) VALUES (?,?,?,?,?,?,?,?,?,?)`);
       const ids: string[] = pending.entries.map((entry, sequence) => {
