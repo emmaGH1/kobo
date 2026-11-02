@@ -18,6 +18,9 @@ Landing page built: hero + scripted chat, how it works, safety example, footer. 
 ## v2 redesign (2026-11-01)
 The owner rated v1 1/10. The landing was rebuilt with the Walos layout, the Lavender/Graphite theme, Geist Serif and an interactive WhatsApp-on-iPhone hero; logo round 2 used concept C provisionally. Verified: typecheck, eslint, 11 vitest, build pass; rendered at 390 and 1440 with no overflow; phone flow clicked through (amount question, review, save, debtors list sheet, history, sample voice). Screens are in docs/design/probe-v2/.
 
+## v3 redesign (2026-11-02)
+The owner found v2 generic. The landing was rebuilt around a self-playing film (phone conversation plus a book that writes itself, generated from the tested engine) under the philosophy "show the transformation, not the interface". Verified: 15 vitest, eslint, typecheck, build; 1440 and 390 with no overflow; film recorded to docs/design/probe-v3/kobo-film.mp4.
+
 ## Blockers / unresolved decisions
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 

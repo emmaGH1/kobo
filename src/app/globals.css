@@ -96,7 +96,33 @@
 .tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 html { font-family: var(--font-serif); }
 
-@media (prefers-reduced-motion: no-preference) {
-  .msg-in { animation: msg-in 140ms ease-out both; }
+/* Lavender highlighter: "Kobo noticed this". The only decorative use of the accent. */
+.kmark {
+  background-image: linear-gradient(var(--lav), var(--lav));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 0.3em;
+  padding: 0 0.06em;
+  font-style: inherit;
 }
+/* On dark surfaces: a full-height mark with graphite text. */
+.kmark-full { background-size: 100% 100%; padding: 0 0.18em; border-radius: 0.12em; }
+.kmark-doubt {
+  background-image: repeating-linear-gradient(90deg, var(--lav) 0 6px, transparent 6px 10px);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .msg-in { animation: msg-in 160ms ease-out both; }
+  .kmark { animation: kmark 650ms cubic-bezier(.2,.7,.2,1) both; }
+  .kmark-full { animation: kmark-full 650ms cubic-bezier(.2,.7,.2,1) both; }
+  .wave-play { animation: wave-fill 2.6s linear both; }
+  .typing-dot { animation: typing 1s ease-in-out infinite; }
+  .book-row { animation: book-row 900ms ease-out both; }
+}
+.wave-play { background: rgba(92,127,91,0.25); }
 @keyframes msg-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes kmark-full { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
+@keyframes kmark { from { background-size: 0% 0.3em; } to { background-size: 100% 0.3em; } }
+@keyframes wave-fill { to { background: rgba(70,110,72,0.95); } }
+@keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-3px); opacity: 1; } }
+@keyframes book-row { from { background-color: color-mix(in srgb, var(--lav) 45%, transparent); } to { background-color: transparent; } }
