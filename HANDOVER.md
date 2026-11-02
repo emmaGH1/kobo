@@ -1,5 +1,8 @@
 # Session handover
 
+## Latest partial natural-language checkpoint
+`43572d9` adds an isolated, source-span-checked naira parser and tests; it is not integrated and does not replace the exact-format service restriction. Numeric and limited English word forms are supported; `three eight` returns ₦380,000 and ₦3,800,000 as alternatives. Pidgin coverage, the extraction schema and examples, structured follow-up questions, atomic customer creation, Lagos dates/copy, and live evaluation are still outstanding. No live model calls or token spending occurred in this checkpoint. Typecheck, lint, 51 offline tests and production build passed. The existing `AGENTS.md` modification predates this checkpoint and was left untouched. Do not claim the requested rebuild is complete.
+
 ## Branch and scope
 Core lane, `core`. The previous `5599239` parser-only state has been extended with a working, deliberately constrained text path. This is not a production deployment and must not be used with real customer data yet. No voice or WhatsApp webhook/sending was implemented.
 
