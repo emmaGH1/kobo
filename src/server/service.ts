@@ -269,6 +269,16 @@ export class Service implements BookkeepingService {
       if (who) return this.historyFor(who.replace(/^(?:me\s+)/i, ''), lang);
     }
     if (p && p.status !== 'editing') return render(p, this.store, lang);
+    // Narrow, complete English credit-sale grammar for the two failed evaluation phrases.
+    // No fuzzy matching, guessed amounts or writes; it still produces an owner-bound review.
+    const credit = /^([\p{L}][\p{L} .'-]{0,99}?) bought (?:goods )?on credit for ((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)(?: naira)?[.!]?$/u.exec(text);
+    if (credit) {
+      const amount = parseNaira(credit[2], text);
+      const customer = this.store.findCustomer(this.ownerId, credit[1]);
+      const entries: EntryDraft[] = [{ kind: 'sale', ...(customer ? { customerId: customer.id } : { customerName: credit[1] }), ...(amount.kind === 'amount' ? { amountKobo: amount.kobo } : {}) }];
+      const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries };
+      return render(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store, lang);
+    }
     // An exact, explicit command does not need a model to reinterpret it.
     const purchase = /^stock purchase\s*:\s*([^:\n]+?)\s*:\s*(\d+(?:\.\d{1,2})?)\s*$/i.exec(text);
     if (purchase) {

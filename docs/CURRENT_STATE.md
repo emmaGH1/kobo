@@ -16,6 +16,9 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Ordered continuation checkpoint 0
+Verified already-pushed 8ac3f3b history/summary work. Two failed English credit-sale phrases now produce deterministic owner-bound reviews, with no model dependency and no writes before confirmation. Removed automatic paid retry; larger output cap retained without claiming live remediation. 91 offline tests passed, 1 live skipped; typecheck/lint/build passed. No paid calls. See HANDOVER.
+
 ### Latest continuation (interactive clarification, copy, language, eval)
 Review-ID-bound clarification is wired to an interactive adapter (`interactive` reply blocks, `handleInteractive`, `/api/dev` `interactive` action) over an ordered multi-question queue (amounts, then dates, then customers); design section 4 English/Pidgin copy and section 3 naira formatting are implemented for the supported flows; English/Pidgin choice is remembered and an unsure message keeps the thread language; a 100× error in the `three eight` candidate amounts was fixed. The eval runner now persists sanitized results (pass rate, per-case outcomes, tokens). The one authorized 25-case live run: **23/25 passed, 2 failed (cases 5, 25), 0 errors; 49,360 total tokens**. 81 offline tests passed (1 live skipped); typecheck, lint, production build passed. Not implemented: customer history, daily-summary template, undo/reversal flow, voice, WhatsApp transport; Pidgin needs native-speaker review. See `HANDOVER.md`.
 

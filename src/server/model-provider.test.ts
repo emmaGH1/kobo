@@ -42,12 +42,11 @@ describe('Responses provider boundary (mocked transport, not live verification)'
     expect(body).toEqual({model:config.modelId,input:[{role:'user',content:'Fictional test'}],tools:[tool],tool_choice:'auto',max_output_tokens:4096,store:false});
     expect(body.tools[0].function).toBeUndefined();
   });
-  it('retries once with a larger output cap when the response is cut off before a tool call', async () => {
-    const done = {status:'completed',output:[{type:'function_call',name:'list_debtors',arguments:'{}'}]};
-    const transport = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(JSON.stringify({status:'incomplete',output:[]}))).mockResolvedValueOnce(new Response(JSON.stringify(done)));
-    expect(await new ResponsesModelProvider(config,transport).requestToolResponse({input:'Fictional test',tools:[tool]})).toEqual(done);
-    expect(transport).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(transport.mock.calls[1][1]!.body as string).max_output_tokens).toBe(8192);
+  it('returns incomplete responses without silently spending on a second call', async () => {
+    const incomplete = {status:'incomplete',output:[]};
+    const transport = fakeFetch(incomplete);
+    expect(await new ResponsesModelProvider(config,transport).requestToolResponse({input:'Fictional test',tools:[tool]})).toEqual(incomplete);
+    expect(transport).toHaveBeenCalledTimes(1);
   });
   it('rejects invalid requests before making any calls', async () => {
     const transport = fakeFetch({});

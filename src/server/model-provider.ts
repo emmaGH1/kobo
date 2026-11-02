@@ -77,19 +77,16 @@ export class ResponsesModelProvider implements ModelProvider {
   async requestToolResponse(request: ToolRequest): Promise<unknown> {
     const parsed = requestSchema.safeParse(request);
     if (!parsed.success) throw new Error('Invalid tool response request');
-    // Documented flat-function Responses format. The model reasons before calling a tool, and a small output cap
-    // was observed (live eval cases 5 and 25) to end the response as `incomplete` with no tool call. Use a roomy
-    // cap, and retry once with a larger one if the response is still cut off.
-    const send = (maxOutputTokens: number) => this.send('/responses', {
+    // A larger cap permits reasoning plus a tool call. Never retry a paid request automatically:
+    // incomplete responses fail closed in Service, and the caller may choose to try again.
+    return this.send('/responses', {
       model: this.config.modelId,
       input: [{ role: 'user', content: parsed.data.input }],
       tools: parsed.data.tools,
       tool_choice: 'auto',
-      max_output_tokens: maxOutputTokens,
+      max_output_tokens: 4096,
       store: false,
     });
-    const first = await send(4096);
-    return (first as { status?: unknown } | null)?.status === 'incomplete' ? send(8192) : first;
   }
 }
 
