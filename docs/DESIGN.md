@@ -39,6 +39,10 @@ The owner judged v2 generic (a phone in a coloured box, as in the WhatsForm and 
 
 Captures and a 50-second recording of the film are in `docs/design/probe-v3/` (`kobo-film.mp4`).
 
+### "Your turn" backend swap
+
+The interactive phone talks only to `ChatBackend` in `src/components/chat/backend.ts` (`greeting`, async `send`, `setLanguage`, `reset`, `limit`, `suggestions`, `sampleVoice`). Today `createChatBackend` returns the scripted engine. When core ships `/api/demo/*`, add `createApiBackend` in that file (the endpoint mapping is in its header comment) and change that one line. The UI already awaits replies, shows typing only while a request is in flight, and shows the "nothing was saved" error if a send fails. A test fails if `whatsapp-demo.tsx` imports the engine directly. The film stays scripted and labelled. `demo-engine.ts` can be deleted once nothing but the film uses it and the film's frames are frozen to data.
+
 ### Camera-ready components (demo video)
 
 `src/components/demo/index.ts` exports props-only components for Remotion: `Phone` (the iPhone + WhatsApp chrome), `KoboBubble` / `TraderBubble` / `Typing`, `WaText`, `ReviewCard`, `BookPanel`, `SummaryCard` (the same component `src/app/og` renders to PNG), and `KoboLogo` / `KoboMark`. A test walks their import graph and fails if any reaches the demo engine or the film script. They need `src/app/globals.css` (tokens) and the Geist fonts.

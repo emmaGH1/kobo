@@ -24,6 +24,9 @@ The owner found v2 generic. The landing was rebuilt around a self-playing film (
 ## v3.1: the film shows the whole day (2026-11-02)
 At the owner's request the film now covers six chapters: stock bought, credit sale with due date, unclear amount, who owes me, day summary, Friday reminder with a drafted customer message. The demo engine gained purchases, due dates (code resolves weekdays), dueReminders, reminderDraft and the summary; 21 tests. **Core must build purchases, due dates, reminders and the summary changes** (DESIGN.md, "Core lane: needed before the landing page's claims are true").
 
+## 10/10 pass (2026-11-02)
+Seven owner-requested steps, each committed and pushed: (1) book totals start at ₦0 and always equal confirmed rows, with opening balances shown first; (2) product in the first screen, phone pinned beside the book on desktop; (3) signature motion, marked words fly from Kobo's bubble into the book (600ms, --ease, reduced-motion safe); (4) notebook photo slot (NOTEBOOK_PHOTO in src/components/landing/notebook-photo.tsx); (5) Your turn greeting plus hint; (6) props-only camera components in src/components/demo with data-demo hooks, SummaryCard shared with /og; (7) ChatBackend adapter in src/components/chat/backend.ts. 35 tests, lint, typecheck and build pass; flows verified in Chromium at 1440 and 390.
+
 ## Blockers / unresolved decisions
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 

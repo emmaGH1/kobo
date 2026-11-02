@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import { RotateCcw, SendHorizontal, Mic, Plus } from "lucide-react";
-import { CHIPS, MESSAGE_LIMIT, SAMPLE_VOICE, createDemo, step, type DemoInput, type DemoState } from "./demo-engine";
-import { Incoming, Outgoing, PhoneShell, WA, type Msg } from "./phone";
+import { createChatBackend, type ChatInput } from "./backend";
+import { Incoming, Outgoing, PhoneShell, Typing, WA, type Msg } from "./phone";
 import type { Lang, ReplyView } from "./types";
 
 /*
- * "Your turn": the interactive version of the phone. Replies come from the SCRIPTED demo
- * engine until core ships /api/demo/* (docs/DESIGN.md section 9).
+ * "Your turn": the interactive phone. It talks only to the ChatBackend in ./backend.ts, which is
+ * the single place the scripted engine gets replaced by core's /api/demo/* (docs/DESIGN.md §9).
  */
 
 function clock(d = new Date()) {
@@ -17,67 +17,69 @@ function clock(d = new Date()) {
 }
 let seq = 0;
 const nid = () => `t${++seq}`;
-const opening = (lang: Lang): Msg => ({
-  id: "open",
-  from: "kobo",
-  view: {
-    lang,
-    kind: "text",
-    body:
-      lang === "pcm"
-        ? "You don come! I be Kobo, your book.\nTell me wetin you buy or sell, who pay you, or ask *who dey owe me*."
-        : "Welcome. I'm Kobo, your book.\nTell me what you bought or sold, who paid you, or ask *who owes me*.",
-  },
+const settle = (list: Msg[]) => list.map((m) => (m.view && (m.view.buttons || m.view.list) && !m.settled ? { ...m, settled: true } : m));
+const failure = (lang: Lang): ReplyView => ({
+  lang,
+  kind: "text",
+  body:
+    lang === "pcm"
+      ? "Something spoil for my side. *I never save anything.* Try again small time."
+      : "Something went wrong on my side. *Nothing was saved.* Please try again shortly.",
 });
 
 export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
+  const [backend] = useState(() => createChatBackend("pcm"));
   const [lang, setLang] = useState<Lang>("pcm");
-  const [demo, setDemo] = useState<DemoState>(() => createDemo("pcm"));
-  const [messages, setMessages] = useState<Msg[]>(() => [opening("pcm")]);
-  const [used, setUsed] = useState(0);
+  const [messages, setMessages] = useState<Msg[]>(() => [{ id: "open", from: "kobo", view: backend.greeting("pcm") }]);
+  const [remaining, setRemaining] = useState(backend.limit);
+  const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const [sheet, setSheet] = useState<ReplyView | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
-  const left = MESSAGE_LIMIT - used;
-  const atLimit = left <= 0;
+  const atLimit = remaining <= 0;
+  const CHIPS = backend.suggestions;
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  }, [messages, busy]);
 
-  function run(input: DemoInput, shown?: Msg) {
-    const isChoice = Boolean(input.action) || /^[123]$/.test((input.text ?? "").trim());
-    if (atLimit && !isChoice) return;
-    const r = step(demo, input);
+  async function run(input: ChatInput, shown?: Msg) {
+    const choice = Boolean(input.action) || /^[123]$/.test((input.text ?? "").trim());
+    if (busy || (atLimit && !choice)) return;
     const time = clock();
-    setDemo(r.state);
-    if (r.counted) setUsed((u) => u + 1);
     setSheet(null);
-    setMessages((prev) => [
-      ...prev.map((m) => (m.view && (m.view.buttons || m.view.list) && !m.settled ? { ...m, settled: true } : m)),
-      ...(shown ? [{ ...shown, time }] : []),
-      ...r.replies.map((view) => ({ id: nid(), from: "kobo" as const, view, time })),
-    ]);
+    setMessages((prev) => [...settle(prev), ...(shown ? [{ ...shown, time }] : [])]);
+    setBusy(true);
+    try {
+      const r = await backend.send(input);
+      setRemaining(r.remaining);
+      setMessages((prev) => [...prev, ...r.replies.map((view) => ({ id: nid(), from: "kobo" as const, view, time: clock() }))]);
+    } catch {
+      setMessages((prev) => [...prev, { id: nid(), from: "kobo", view: failure(lang), time: clock() }]);
+    } finally {
+      setBusy(false);
+    }
   }
   const send = (text: string) => {
     const t = text.trim();
     if (!t) return;
     setDraft("");
-    run({ text: t }, { id: nid(), from: "you", text: t });
+    void run({ text: t }, { id: nid(), from: "you", text: t });
   };
-  const tap = (b: { id: string; title: string }) => run({ action: b.id }, { id: nid(), from: "you", text: b.title });
-  const voice = () => run({ text: SAMPLE_VOICE.transcript, voice: true }, { id: nid(), from: "you", text: SAMPLE_VOICE.transcript, voice: true });
-  function reset() {
-    setDemo(createDemo(lang));
-    setMessages([opening(lang)]);
-    setUsed(0);
+  const tap = (b: { id: string; title: string }) => void run({ action: b.id }, { id: nid(), from: "you", text: b.title });
+  const voice = () =>
+    void run({ text: backend.sampleVoice.transcript, voice: true }, { id: nid(), from: "you", text: backend.sampleVoice.transcript, voice: true });
+  async function reset() {
+    const r = await backend.reset();
+    setRemaining(r.remaining);
+    setMessages([{ id: "open", from: "kobo", view: backend.greeting(lang) }]);
     setDraft("");
     setSheet(null);
   }
   function switchLang(next: Lang) {
     setLang(next);
-    setDemo((d) => ({ ...d, lang: next }));
-    setMessages((m) => (m.length === 1 ? [opening(next)] : m));
+    backend.setLanguage(next);
+    setMessages((m) => (m.length === 1 ? [{ id: "open", from: "kobo", view: backend.greeting(next) }] : m));
   }
   const lastKobo = [...messages].reverse().find((m) => m.from === "kobo")?.id;
 
@@ -168,7 +170,7 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
               </button>
             ))}
           </div>
-          <span className="tnum">{Math.max(left, 0)} of {MESSAGE_LIMIT} messages left</span>
+          <span className="tnum">{Math.max(remaining, 0)} of {backend.limit} messages left</span>
           <button type="button" onClick={reset} className="flex items-center gap-1 underline-offset-4 hover:underline">
             <RotateCcw className="size-3" strokeWidth={2} /> Reset
           </button>
@@ -183,6 +185,7 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
               <Incoming key={m.id} view={m.view!} time={m.time} live={!m.settled && m.id === lastKobo} onTap={tap} onList={() => setSheet(m.view!)} />
             ),
           )}
+          {busy && <Typing />}
           {messages.length === 1 && (
             <span className="msg-in mx-auto mt-2 shrink-0 rounded-full bg-white/70 px-3 py-1 text-center text-[12.5px]" style={{ color: WA.meta }}>
               <span className="lg:hidden">Tap a message above, or type your own</span>
