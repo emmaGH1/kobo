@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { LedgerStore } from './ledger-store';
 import { Service } from './service';
-import { createModelProvider } from './model-provider';
+import { createModelProvider, ModelProviderError } from './model-provider';
 
 // Explicit opt-in: synthetic names only, in-memory DB, paid provider calls, no confirmations.
 const cases: [string, string, number | null][] = [
@@ -31,9 +31,15 @@ it.skipIf(process.env.KOBO_LIVE_EVAL !== '1')('evaluates 25 synthetic messages a
       store.sqlite.exec("INSERT INTO owners VALUES ('a','A','x',0)");
       const result=await new Service('a',store,provider).handleMessage({channel:'web',senderId:'s',text});
       const pending=result.pending && store.pending('a',result.pending.id);
-      const ok=amount === null ? !!pending?.flags.length : !!pending && pending.flags.length === 0 && pending.entries.length === 1 && pending.entries[0].kind === kind && pending.entries[0].amountKobo === amount && pending.entries[0].customerName === text.split(' ')[0];
+      const correctEntry = !!pending && pending.entries.length === 1 && pending.entries[0].kind === kind && pending.entries[0].customerName === text.split(' ')[0];
+      const ok = correctEntry && (amount === null ? !!pending.flags.length && !pending.entries[0].amountKobo : pending.flags.length === 0 && pending.entries[0].amountKobo === amount);
       if (ok) passed++; else {failed++; console.log(`Case ${index+1} failed`);}
-    } catch { errors++; console.log(`Case ${index+1} provider or processing error`); }
+    } catch (error) {
+      errors++;
+      // Do not print provider payloads, model output, credentials or untrusted messages.
+      const category = error instanceof ModelProviderError ? `provider HTTP ${error.status}` : error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'processing or transport';
+      console.log(`Case ${index+1} error: ${category}`);
+    }
     finally {store.close();}
   }
   console.log(`Live synthetic evaluation: ${passed} passed, ${failed} failed, ${errors} errors, ${selected ? new Set(selected).size : cases.length} total; no confirmations.`);
