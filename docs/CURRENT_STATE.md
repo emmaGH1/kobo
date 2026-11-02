@@ -16,6 +16,9 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Ordered continuation checkpoint 1
+Core `/api/demo/*` adapter implemented: seeded isolated 30-minute sessions; same Service messages and ID-bound actions; ReplyView render hints; actual-provider-call session/daily limits; reset revocation without quota refill; samples and authenticated PNG summary. No consented voice clip exists: voice-sample honestly returns 503. Design backend not switched (separate lane). 96 offline tests passed, 1 live skipped; typecheck/lint/build passed. Production-loopback synthetic session/review/save/PNG exercised without model calls; not external HTTPS proof. See HANDOVER for exact action envelope, IP trust configuration, limitations.
+
 ### Ordered continuation checkpoint 0
 Verified already-pushed 8ac3f3b history/summary work. Two failed English credit-sale phrases now produce deterministic owner-bound reviews, with no model dependency and no writes before confirmation. Removed automatic paid retry; larger output cap retained without claiming live remediation. 91 offline tests passed, 1 live skipped; typecheck/lint/build passed. No paid calls. See HANDOVER.
 
