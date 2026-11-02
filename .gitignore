@@ -43,3 +43,9 @@ runs/
 local/
 kobo-voice-test/
 .DS_Store
+
+# demo video: large media stays local
+demo/out/
+demo/video/out/
+demo/refs/*.mp4
+demo/broll/

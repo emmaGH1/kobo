@@ -1,0 +1,20 @@
+Kobo demo: external media and licenses
+Every external clip, font and track used in the final video is listed here.
+
+VIDEO
+- "Lagos market women trading" by Shedrack Salami. Pexels, Pexels License (free to use).
+  https://www.pexels.com/video/lagos-market-women-trading-27165007/
+  18s, 3840x2160, 25fps. Use: S1a.
+- "Vibrant African market in Cote d'Ivoire" by Fabio Le Saint. Pexels, Pexels License (free to use).
+  https://www.pexels.com/video/vibrant-african-market-in-cote-d-ivoire-38444251/
+  15s, 3840x2160, 29.97fps. Shot in Cote d'Ivoire, not Nigeria: use only as texture, never captioned as Nigeria.
+- Pexels video 39541763: page link and creator needed before use.
+
+FONTS
+- Geist Sans, Geist Serif (Vercel). SIL Open Font License. See src/app/fonts/GEIST-OFL.txt.
+
+VOICE
+- Narration: Emmanuel's own cloned voice (ElevenLabs), used with his consent.
+
+MUSIC
+- TBD (free-license source only).
