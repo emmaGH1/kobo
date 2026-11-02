@@ -16,7 +16,7 @@ export function sourceHasSpan(source: string, span: string): boolean {
 export function parseNaira(span: string, source: string): NairaResult {
   if (!sourceHasSpan(source, span)) return invalid;
   let s = span.trim().toLowerCase().replace(/^₦\s*/, '').replace(/\s*(?:naira|nairas|n\.?g\.?n\.?)$/, '').trim();
-  if (s === 'three eight') return { kind: 'ambiguous', candidatesKobo: [38000000, 380000000] };
+  if (s === 'three eight') return { kind: 'ambiguous', candidatesKobo: [380000, 3800000] };
   const numeric = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?\s*([km])?$/.exec(s);
   if (numeric) {
     const whole = BigInt(numeric[1].replaceAll(',', ''));

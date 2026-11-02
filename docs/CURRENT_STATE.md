@@ -16,7 +16,10 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
-### Latest partial continuation
+### Latest continuation (interactive clarification, copy, language, eval)
+Review-ID-bound clarification is wired to an interactive adapter (`interactive` reply blocks, `handleInteractive`, `/api/dev` `interactive` action) over an ordered multi-question queue (amounts, then dates, then customers); design section 4 English/Pidgin copy and section 3 naira formatting are implemented for the supported flows; English/Pidgin choice is remembered and an unsure message keeps the thread language; a 100× error in the `three eight` candidate amounts was fixed. The eval runner now persists sanitized results (pass rate, per-case outcomes, tokens). The one authorized 25-case live run: **23/25 passed, 2 failed (cases 5, 25), 0 errors; 49,360 total tokens**. 81 offline tests passed (1 live skipped); typecheck, lint, production build passed. Not implemented: customer history, daily-summary template, undo/reversal flow, voice, WhatsApp transport; Pidgin needs native-speaker review. See `HANDOVER.md`.
+
+### Previous partial continuation
 Per-entry amount options and a review-ID-bound clarification API were added, with fresh reviews and stale/cross-owner tests. Full structured clarification, interactive adapter wiring, design section 4 exact copy and remembered Pidgin/English selection remain incomplete. An authorized live 25-case run completed once; its test passed only the 25-classifications accounting assertion, and aggregate results and provider token totals were suppressed by Vitest and are unavailable. No accuracy result can be claimed for that run and it was not repeated. Typecheck, lint, 67 offline tests (one live test skipped), and production build passed; see HANDOVER for limitations.
 
 Checkpoint A implemented on `core`: owner/customer/alias, pending action, append-only event and evidence schema; pure integer-kobo balances, debtors and daily summaries; transactional, idempotent confirmation; owner/conversation scoping, expiry, cancellation and replacement review IDs. Confirmation retries acknowledge the same committed result without appending. No UI, AI, authentication or HTTP routes yet.

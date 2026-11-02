@@ -51,6 +51,9 @@ export class LedgerStore {
     this.sqlite.transaction(() => {
       const columns = this.sqlite.pragma('table_info(ledger_events)') as {name: string}[];
       if (!columns.some(column => column.name === 'due_date')) this.sqlite.exec('ALTER TABLE ledger_events ADD COLUMN due_date TEXT');
+      const pendingColumns = this.sqlite.pragma('table_info(pending_actions)') as {name: string}[];
+      if (!pendingColumns.some(column => column.name === 'confirm_ref')) this.sqlite.exec('ALTER TABLE pending_actions ADD COLUMN confirm_ref INTEGER');
+      if (!pendingColumns.some(column => column.name === 'confirmed_at')) this.sqlite.exec('ALTER TABLE pending_actions ADD COLUMN confirmed_at INTEGER');
     }).immediate();
     this.db = drizzle(this.sqlite);
   }
@@ -148,7 +151,7 @@ export class LedgerStore {
         const entry = pending.entries[0];
         this.sqlite.prepare('INSERT INTO stock_purchases(id,owner_id,description,amount_kobo,pending_id,occurred_at) VALUES(?,?,?,?,?,?)').run(randomUUID(),ownerId,entry.description!,entry.amountKobo!,id,now);
         this.spent(ownerId, 0, Number.MAX_SAFE_INTEGER); // Reject aggregate overflow transactionally.
-        this.sqlite.prepare("UPDATE pending_actions SET status='confirmed' WHERE id=?").run(id);
+        this.markConfirmed(ownerId, id, now);
         return [];
       }
       const created = new Map<string, string>();
@@ -172,9 +175,24 @@ export class LedgerStore {
       });
       // Roll back the complete transaction if aggregate arithmetic exceeds safe integer bounds.
       balances(this.events(ownerId));
-      this.sqlite.prepare("UPDATE pending_actions SET status='confirmed' WHERE id=?").run(id);
+      this.markConfirmed(ownerId, id, now);
       return this.events(ownerId).filter(e => ids.includes(e.id));
     }).immediate();
+  }
+  /** Sequential per-owner reference, assigned once inside the confirming transaction so retries show the same one. */
+  private markConfirmed(ownerId: string, id: string, now: number) {
+    this.sqlite.prepare("UPDATE pending_actions SET status='confirmed', confirm_ref=(SELECT COALESCE(MAX(confirm_ref),0)+1 FROM pending_actions WHERE owner_id=?), confirmed_at=? WHERE owner_id=? AND id=?").run(ownerId, now, ownerId, id);
+  }
+  confirmation(ownerId: string, id: string): {ref: number; at: number} | undefined {
+    const row = this.sqlite.prepare("SELECT confirm_ref AS ref, confirmed_at AS at FROM pending_actions WHERE owner_id=? AND id=? AND status='confirmed'").get(ownerId, id) as {ref: number | null; at: number | null} | undefined;
+    return row && row.ref !== null && row.at !== null ? {ref: row.ref, at: row.at} : undefined;
+  }
+  language(ownerId: string, channel: string, senderId: string): {language: 'en' | 'pg'; explicit: boolean} | undefined {
+    const row = this.sqlite.prepare('SELECT language, explicit_choice AS explicit FROM sender_prefs WHERE owner_id=? AND channel=? AND sender_id=?').get(ownerId, channel, senderId) as {language: 'en' | 'pg'; explicit: number} | undefined;
+    return row && {language: row.language, explicit: !!row.explicit};
+  }
+  setLanguage(ownerId: string, channel: string, senderId: string, language: 'en' | 'pg', explicit: boolean) {
+    this.sqlite.prepare('INSERT INTO sender_prefs VALUES(?,?,?,?,?) ON CONFLICT(owner_id,channel,sender_id) DO UPDATE SET language=excluded.language, explicit_choice=excluded.explicit_choice').run(ownerId, channel, senderId, language, explicit ? 1 : 0);
   }
   setStatus(ownerId: string,id: string,channel: string,senderId: string,status: 'editing'|'cancelled') {
     return this.sqlite.transaction(() => {

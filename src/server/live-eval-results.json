@@ -1,0 +1,245 @@
+{
+  "finishedAt": "2026-11-02T21:48:15.521Z",
+  "total": 25,
+  "passed": 23,
+  "failed": 2,
+  "errors": 0,
+  "passRate": "23/25 (92.0%)",
+  "usage": {
+    "responsesWithUsage": 25,
+    "responsesWithoutUsage": 0,
+    "inputTokens": 36316,
+    "outputTokens": 13044,
+    "totalTokens": 49360
+  },
+  "results": [
+    {
+      "case": 1,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 500000,
+      "outcome": "pass",
+      "inputTokens": 1456,
+      "outputTokens": 989,
+      "totalTokens": 2445
+    },
+    {
+      "case": 2,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 200000,
+      "outcome": "pass",
+      "inputTokens": 1454,
+      "outputTokens": 552,
+      "totalTokens": 2006
+    },
+    {
+      "case": 3,
+      "expectedKind": "opening_debt",
+      "expectedAmountKobo": 1000000,
+      "outcome": "pass",
+      "inputTokens": 1457,
+      "outputTokens": 478,
+      "totalTokens": 1935
+    },
+    {
+      "case": 4,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 150000,
+      "outcome": "pass",
+      "inputTokens": 1456,
+      "outputTokens": 376,
+      "totalTokens": 1832
+    },
+    {
+      "case": 5,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 1200000,
+      "outcome": "fail",
+      "reason": "unexpected number of entries or no review",
+      "inputTokens": 1460,
+      "outputTokens": 1024,
+      "totalTokens": 2484
+    },
+    {
+      "case": 6,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 500000,
+      "outcome": "pass",
+      "inputTokens": 1448,
+      "outputTokens": 692,
+      "totalTokens": 2140
+    },
+    {
+      "case": 7,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 150000,
+      "outcome": "pass",
+      "inputTokens": 1459,
+      "outputTokens": 406,
+      "totalTokens": 1865
+    },
+    {
+      "case": 8,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 50000,
+      "outcome": "pass",
+      "inputTokens": 1455,
+      "outputTokens": 447,
+      "totalTokens": 1902
+    },
+    {
+      "case": 9,
+      "expectedKind": "opening_debt",
+      "expectedAmountKobo": 800000,
+      "outcome": "pass",
+      "inputTokens": 1448,
+      "outputTokens": 558,
+      "totalTokens": 2006
+    },
+    {
+      "case": 10,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 3000000,
+      "outcome": "pass",
+      "inputTokens": 1450,
+      "outputTokens": 477,
+      "totalTokens": 1927
+    },
+    {
+      "case": 11,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 350000,
+      "outcome": "pass",
+      "inputTokens": 1448,
+      "outputTokens": 445,
+      "totalTokens": 1893
+    },
+    {
+      "case": 12,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 2000000,
+      "outcome": "pass",
+      "inputTokens": 1452,
+      "outputTokens": 429,
+      "totalTokens": 1881
+    },
+    {
+      "case": 13,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 10050,
+      "outcome": "pass",
+      "inputTokens": 1449,
+      "outputTokens": 816,
+      "totalTokens": 2265
+    },
+    {
+      "case": 14,
+      "expectedKind": "opening_debt",
+      "expectedAmountKobo": 200000,
+      "outcome": "pass",
+      "inputTokens": 1449,
+      "outputTokens": 398,
+      "totalTokens": 1847
+    },
+    {
+      "case": 15,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 10000000,
+      "outcome": "pass",
+      "inputTokens": 1457,
+      "outputTokens": 514,
+      "totalTokens": 1971
+    },
+    {
+      "case": 16,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 100000000,
+      "outcome": "pass",
+      "inputTokens": 1454,
+      "outputTokens": 341,
+      "totalTokens": 1795
+    },
+    {
+      "case": 17,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 250000,
+      "outcome": "pass",
+      "inputTokens": 1456,
+      "outputTokens": 457,
+      "totalTokens": 1913
+    },
+    {
+      "case": 18,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 700000,
+      "outcome": "pass",
+      "inputTokens": 1447,
+      "outputTokens": 329,
+      "totalTokens": 1776
+    },
+    {
+      "case": 19,
+      "expectedKind": "opening_debt",
+      "expectedAmountKobo": 90000,
+      "outcome": "pass",
+      "inputTokens": 1457,
+      "outputTokens": 414,
+      "totalTokens": 1871
+    },
+    {
+      "case": 20,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 400000,
+      "outcome": "pass",
+      "inputTokens": 1457,
+      "outputTokens": 380,
+      "totalTokens": 1837
+    },
+    {
+      "case": 21,
+      "expectedKind": "payment",
+      "expectedAmountKobo": null,
+      "outcome": "pass",
+      "inputTokens": 1445,
+      "outputTokens": 640,
+      "totalTokens": 2085
+    },
+    {
+      "case": 22,
+      "expectedKind": "sale",
+      "expectedAmountKobo": null,
+      "outcome": "pass",
+      "inputTokens": 1446,
+      "outputTokens": 429,
+      "totalTokens": 1875
+    },
+    {
+      "case": 23,
+      "expectedKind": "payment",
+      "expectedAmountKobo": 250000,
+      "outcome": "pass",
+      "inputTokens": 1449,
+      "outputTokens": 389,
+      "totalTokens": 1838
+    },
+    {
+      "case": 24,
+      "expectedKind": "opening_debt",
+      "expectedAmountKobo": 1500000,
+      "outcome": "pass",
+      "inputTokens": 1450,
+      "outputTokens": 511,
+      "totalTokens": 1961
+    },
+    {
+      "case": 25,
+      "expectedKind": "sale",
+      "expectedAmountKobo": 600000,
+      "outcome": "fail",
+      "reason": "unexpected number of entries or no review",
+      "inputTokens": 1457,
+      "outputTokens": 553,
+      "totalTokens": 2010
+    }
+  ],
+  "note": "Synthetic extraction check; no confirmations, no ledger persisted, no real data. Not a production accuracy or safety benchmark. Tokens exclude cases whose provider call errored."
+}

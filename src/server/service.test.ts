@@ -23,7 +23,7 @@ it('requires confirmation then lists deterministic debtors', async () => {
   await service.handleMessage({ ...ctx, text: '1' });
   expect(store.events('a')[0].amountKobo).toBe(100000);
   response = call('list_debtors', {});
-  expect((await service.handleMessage({ ...ctx, text: 'who owes?' })).replyText).toContain('₦1000.00');
+  expect((await service.handleMessage({ ...ctx, text: 'who owes?' })).replyText).toContain('₦1,000');
   expect(store.events('b')).toHaveLength(0);
 });
 it('blocks hallucinated, ambiguous and semantically unsupported amounts', async () => {
@@ -66,7 +66,7 @@ it('records a confirmed stock purchase once and includes it in spent', async () 
   expect(store.spent('b',0,Date.now()+1000)).toBe(0);
   expect(() => store.sqlite.prepare('DELETE FROM stock_purchases').run()).toThrow();
   response = call('daily_summary', {});
-  expect((await service.handleMessage({ ...ctx, text:'summary' })).replyText).toContain('stock spent ₦2000.00');
+  expect((await service.handleMessage({ ...ctx, text:'summary' })).replyText).toContain('stock spent ₦2,000');
 });
 it('shows negative daily sales when a previous-day sale is reversed today', async () => {
   const clock = vi.spyOn(Date, 'now');
@@ -78,7 +78,7 @@ it('shows negative daily sales when a previous-day sale is reversed today', asyn
     const correction = store.propose({ownerId:'a', channel:'web', senderId:'session', idempotencyKey:'reverse', rawInput:'synthetic', entries:[{kind:'reversal',customerId:'c',amountKobo:10000,reversalOf:event.id}]});
     store.confirm('a',correction.id,'web','session');
     response = call('daily_summary', {});
-    expect((await service.handleMessage({ ...ctx, text:'summary' })).replyText).toContain('sales -₦100.00');
+    expect((await service.handleMessage({ ...ctx, text:'summary' })).replyText).toContain('sales -₦100,');
   } finally { clock.mockRestore(); }
 });
 it('uses Lagos midnight for daily summary', async () => {
@@ -91,7 +91,7 @@ it('uses Lagos midnight for daily summary', async () => {
     const second = store.propose({ownerId:'a',channel:'web',senderId:'session',idempotencyKey:'after',rawInput:'synthetic',entries:[{kind:'sale',customerId:'c',amountKobo:200}]});
     store.confirm('a',second.id,'web','session');
     response = call('daily_summary', {});
-    expect((await service.handleMessage({...ctx,text:'summary'})).replyText).toContain('Today (Lagos): sales ₦2.00');
+    expect((await service.handleMessage({...ctx,text:'summary'})).replyText).toContain('Today (Lagos): sales ₦2,');
   } finally {clock.mockRestore();}
 });
 it('does not choose arbitrarily when a name collides with another alias', () => {
@@ -100,6 +100,8 @@ it('does not choose arbitrarily when a name collides with another alias', () => 
 });
 it('rejects invalid provider output without saving', async () => {
   response = { status: 'incomplete', output: [] };
-  await expect(service.handleMessage({ ...ctx, text: 'anything' })).rejects.toThrow();
+  const reply = await service.handleMessage({ ...ctx, text: 'anything' });
+  expect(reply.replyText).toContain('Nothing was saved');
+  expect(reply.pending).toBeUndefined();
   expect(store.events('a')).toHaveLength(0);
 });

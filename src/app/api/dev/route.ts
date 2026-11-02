@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { login, sameOrigin, service, session, store } from '../../../server/web';
 import { balances } from '../../../core/ledger';
+import { formatNaira } from '../../../server/copy';
 
 // POST routes run in the default Node.js runtime; cacheComponents forbids segment overrides.
 const requestSchema = z.discriminatedUnion('action', [
@@ -12,6 +13,8 @@ const requestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reminder'), name: z.string().trim().min(1).max(100), phone: z.string().regex(/^[1-9]\d{7,14}$/) }).strict(),
   z.object({ action: z.literal('message'), text: z.string().trim().min(1).max(4000) }).strict(),
   z.object({ action: z.enum(['confirm', 'cancel', 'edit']), pendingId: z.uuid() }).strict(),
+  // Opaque ids from a previous reply's `interactive` block; routed and re-checked server-side.
+  z.object({ action: z.literal('interactive'), id: z.string().max(100) }).strict(),
 ]);
 async function boundedBody(req: NextRequest): Promise<string> {
   const length = Number(req.headers.get('content-length') ?? 0);
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
       if (!customer) return NextResponse.json({ error: 'Customer not found or ambiguous' }, { status: 404 });
       const amount = balances(store().events(auth.ownerId))[customer.id] ?? 0;
       if (amount <= 0) return NextResponse.json({ error: 'No outstanding balance' }, { status: 400 });
-      const amountText = `₦${Math.floor(amount / 100)}.${String(amount % 100).padStart(2, '0')}`;
+      const amountText = formatNaira(amount);
       const message = `Hello ${customer.name}, this is a reminder that your outstanding balance is ${amountText}. Thank you.`;
       return NextResponse.json({ replyText: message, reminderUrl: `https://wa.me/${data.phone}?text=${encodeURIComponent(message)}` }, { headers: { 'Cache-Control': 'no-store' } });
     }
@@ -64,6 +67,7 @@ export async function POST(req: NextRequest) {
     const reply = data.action === 'message' ? await app.handleMessage({ ...context, text: data.text })
       : data.action === 'confirm' ? await app.confirm({ ...context, pendingId: data.pendingId })
       : data.action === 'edit' ? await app.edit({ ...context, pendingId: data.pendingId })
+      : data.action === 'interactive' ? await app.handleInteractive({ ...context, id: data.id })
       : await app.cancel({ ...context, pendingId: data.pendingId });
     return NextResponse.json(reply, { headers: { 'Cache-Control': 'no-store' } });
   } catch {

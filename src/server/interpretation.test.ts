@@ -15,7 +15,7 @@ it('connects quoted shorthand to an atomic new-customer review', async () => {
   try {
     const r=await service.handleMessage({...ctx,text:'Bola bought on credit for 12k'});
     expect(r.pending?.flags).toEqual([]);
-    expect(r.replyText).toContain('Bola (new customer)');
+    expect(r.replyText).toContain('*Bola* (new customer)');
     expect(store.customers('a')).toHaveLength(0);
     await service.confirm({...ctx,pendingId:r.pending!.id});
     expect(store.events('a')[0].amountKobo).toBe(1200000);
@@ -38,7 +38,7 @@ it('resolves an amount choice into a fresh review, never a save', async () => {
   const {store,service}=setup([entry({amount_text:'three eight',evidence_text:text})]);
   try {
     const first=await service.handleMessage({...ctx,text});
-    expect(first.pending?.clarifications?.some(c => c.options?.length === 2)).toBe(true);
+    expect(first.pending?.clarifications?.[0].options?.map(o => o.label)).toEqual(['₦3,800','₦38,000','Another amount']);
     const second=await service.handleMessage({...ctx,text:'1'});
     expect(second.pending?.id).not.toBe(first.pending?.id);
     expect(second.pending?.flags).toEqual([]);

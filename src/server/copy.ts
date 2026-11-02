@@ -1,0 +1,150 @@
+import { CONFIRMATION_PROMPT, type InteractiveReply } from '../core/contract';
+
+/**
+ * User-facing copy from docs/DESIGN.md (design branch) section 4, plus the section 3 naira rules.
+ * Display only: nothing here feeds arithmetic. Strings marked "not in design" are minimal
+ * additions where the approved copy has no wording; they must be reviewed with the rest
+ * (the design requires a native Pidgin speaker to check all Pidgin before launch).
+ */
+export type Language = 'en' | 'pg';
+
+/** Section 3: `₦3,800`, kobo only when non-zero, never abbreviated. Negative is used only for net summaries. */
+export function formatNaira(kobo: number): string {
+  if (!Number.isSafeInteger(kobo)) throw new Error('Invalid amount');
+  const abs = Math.abs(kobo);
+  const whole = Math.floor(abs / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const fraction = abs % 100;
+  return `${kobo < 0 ? '-' : ''}₦${whole}${fraction ? `.${String(fraction).padStart(2, '0')}` : ''}`;
+}
+const bold = (s: string) => `*${s}*`;
+const pick = <T,>(lang: Language, en: T, pg: T): T => (lang === 'pg' ? pg : en);
+
+// Confident Pidgin markers only. Anything unsure is English (section 4 general rules).
+const PIDGIN = /\b(dey|wetin|abeg|wahala|wey|una|sabi|comot|pikin|nawa|abi|oya|biko|sef)\b|\b(?:e|i|im|dem) (?:don|no|go|dey)\b|\bmake i\b|\bna so\b|\bhow far\b|\b(?:pay|owe|carry|collect|give|buy|write|save) am\b/i;
+/** 'pg' or 'en' when the message itself is conclusive, otherwise undefined (caller keeps the thread's language). */
+export function detectLanguage(text: string): Language | undefined {
+  if (PIDGIN.test(text)) return 'pg';
+  const words = text.match(/\p{L}{2,}/gu) ?? [];
+  return words.length >= 2 ? 'en' : undefined;
+}
+export function languageCommand(text: string): Language | undefined {
+  const t = text.trim().toLowerCase();
+  return t === 'english' ? 'en' : t === 'pidgin' ? 'pg' : undefined;
+}
+export const languageSet = (l: Language) => pick(l, 'Okay. I will reply in English.', 'Okay. I go reply you for Pidgin.'); // not in design
+
+const cut = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1)}…`);
+export const button = (id: string, title: string) => ({ id, title: cut(title, 20) });
+
+// ---- 4.1 review ----
+export interface ReviewLine { kind: 'sale' | 'payment' | 'opening_debt' | 'purchase'; amount: string; due?: string; calculated?: boolean; description?: string }
+export interface ReviewGroup { name: string; isNew: boolean; lines: ReviewLine[]; before?: number; after?: number }
+function lineText(l: Language, line: ReviewLine): string {
+  const label = line.kind === 'sale' ? pick(l, 'Credit sale', 'Credit sale')
+    : line.kind === 'payment' ? pick(l, 'Paid now', 'Pay now')
+    : line.kind === 'opening_debt' ? pick(l, 'Debt from before', 'Old debt')
+    : pick(l, `Stock bought (${line.description ?? 'unknown stock'})`, `Stock wey you buy (${line.description ?? 'unknown stock'})`); // purchase wording not in design
+  const due = line.due ? pick(l, `, due ${line.due}`, `, pay day ${line.due}`) : ''; // not in design
+  const calc = line.calculated ? pick(l, ' (calculated as sale total minus stated unpaid amount)', ' (I work am out: sale total minus wetin remain)') : ''; // not in design
+  return `- ${label}: ${bold(line.amount)}${due}${calc}`;
+}
+/** The before/after sentence uses balances calculated by code. The design's "she" is replaced by neutral wording. */
+function balanceSentence(l: Language, g: ReviewGroup): string {
+  if (g.after === undefined) return '';
+  const before = g.before ?? 0;
+  const a = g.after;
+  const had = before > 0 ? pick(l, `They owed ${formatNaira(before)} before. `, `Before, im owe ${formatNaira(before)}. `) : '';
+  if (a > 0) return had + pick(l, `After this they will owe ${bold(formatNaira(a))}.`, `After this, im go owe ${bold(formatNaira(a))}.`);
+  if (a === 0) return had + pick(l, 'After this they will owe nothing.', 'After this, e don clear.');
+  return had + pick(l, `After this they will have ${bold(formatNaira(-a))} credit with you.`, `After this, im go get ${bold(formatNaira(-a))} credit with you.`); // not in design
+}
+export function reviewText(l: Language, groups: ReviewGroup[], note?: string): string {
+  const head = pick(l, 'Shall I write it like this?', 'Make I write am like this?');
+  const body = groups.map(g => [`${bold(g.name)}${g.isNew ? pick(l, ' (new customer)', ' (new customer)') : ''}`, ...g.lines.map(x => lineText(l, x)), ...(balanceSentence(l, g) ? ['', balanceSentence(l, g)] : [])].join('\n')).join('\n\n');
+  return `${head}\n\n${body}\n\n${note ? `${note}\n\n` : ''}${CONFIRMATION_PROMPT}`;
+}
+export const blockedNote = (l: Language, flags: string[]) => pick(l,
+  `I can't save this yet: ${flags.join('; ')}\nChoose 2 to edit and send the corrected details.`,
+  `I no fit save am yet: ${flags.join('; ')}\nChoose 2 to edit, then send the correct details.`); // not in design
+export function reviewInteractive(l: Language, id: string, body: string, blocked: boolean): InteractiveReply {
+  // A blocked review has no Save button; typed `1` is refused by the same check anyway.
+  return { kind: 'buttons', body: cut(body.replace(`\n\n${CONFIRMATION_PROMPT}`, ''), 1024), footer: CONFIRMATION_PROMPT, buttons: [...(blocked ? [] : [button(`save:${id}`, '1 Save')]), button(`edit:${id}`, '2 Edit'), button(`cancel:${id}`, '3 Cancel')] };
+}
+export const editPrompt = (l: Language) => pick(l, 'Okay. Send the correct details, by voice or text.', 'Okay. Tell me the correct one, talk am or type am.');
+export const cancelled = (l: Language) => pick(l, 'Cancelled. Nothing was saved.', 'I no save am. Nothing change for your book.');
+
+// ---- 4.2 / 4.5 questions ----
+const noun = (l: Language, kind: string, name: string) => {
+  const what = kind === 'sale' ? pick(l, 'sale', 'sale') : kind === 'payment' ? pick(l, 'payment', 'payment') : kind === 'opening_debt' ? pick(l, 'old debt', 'old debt') : pick(l, 'stock purchase', 'stock purchase');
+  return kind === 'purchase' ? 'the stock purchase' : pick(l, `${name}'s ${what}`, `${name} ${what}`);
+};
+export const questionFooter = (l: Language) => pick(l, 'Nothing is saved yet.', 'I never save anything.');
+export const anotherAmount = (l: Language) => pick(l, 'Another amount', 'Another amount');
+export const typeAmountPrompt = (l: Language) => pick(l, 'Type the amount in numbers, e.g. 3800.', 'Type the amount with numbers, like 3800.');
+export function amountQuestionText(l: Language, a: { kind: string; name: string; source?: string; candidates: number[] }): string {
+  if (!a.source) {
+    const ask = a.kind === 'payment' ? pick(l, `How much did ${a.name} pay?`, `How much ${a.name} pay?`) // not in design
+      : a.kind === 'purchase' ? pick(l, 'How much was the stock purchase?', 'How much be the stock purchase?') // not in design
+      : pick(l, `How much does ${a.name} owe?`, `How much ${a.name} owe?`);
+    return `${ask} ${pick(l, 'Type or say the amount.', 'Type am or talk am.')}`;
+  }
+  const heard = pick(l, `I heard ${bold(`"${a.source}"`)} for ${noun(l, a.kind, a.name)}.`, `I hear ${bold(`"${a.source}"`)} for ${noun(l, a.kind, a.name)}.`);
+  if (a.candidates.length === 2) {
+    return `${heard}\n${pick(l, 'Which amount is it?', 'Which one be am?')}\n${a.candidates.map((c, i) => `${i + 1}. ${formatNaira(c)}`).join('\n')}\n3. ${anotherAmount(l)}`;
+  }
+  return `${heard}\n${typeAmountPrompt(l)}`;
+}
+export const dateQuestion = (l: Language, name: string) => pick(l, `Which day will ${name} pay? Use YYYY-MM-DD, today, tomorrow or a weekday.`, `Which day ${name} go pay? Use YYYY-MM-DD, today, tomorrow or weekday name.`); // not in design
+export const customerQuestion = (l: Language, name: string) => pick(l, `Which ${name} do you mean?`, `Which ${name} you mean?`);
+export const newCustomer = (l: Language) => pick(l, 'New customer', 'New customer');
+export function questionInteractive(id: string, body: string, l: Language, options: { value: string; label: string; description?: string }[], list: boolean): InteractiveReply | undefined {
+  if (!options.length) return undefined;
+  if (!list) return { kind: 'buttons', body: cut(body, 1024), footer: cut(questionFooter(l), 60), buttons: options.slice(0, 3).map(o => button(`answer:${id}:${o.value}`, o.label)) };
+  return { kind: 'list', body: cut(body, 1024), footer: cut(questionFooter(l), 60), listButton: pick(l, 'Choose', 'Choose'), rows: options.slice(0, 10).map(o => ({ id: `answer:${id}:${o.value}`, title: cut(o.label, 24), ...(o.description ? { description: cut(o.description, 72) } : {}) })) };
+}
+export const owesDescription = (l: Language, kobo: number) => kobo > 0 ? pick(l, `Owes ${formatNaira(kobo)}`, `Owe ${formatNaira(kobo)}`) : pick(l, 'Owes nothing', 'E don clear');
+
+// ---- 4.3 saved ----
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** `1 Nov, 4:12pm` in Lagos (UTC+01:00 year-round). */
+export function lagosStamp(ms: number): string {
+  const d = new Date(ms + 3600000);
+  const h = d.getUTCHours();
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}, ${((h + 11) % 12) + 1}:${String(d.getUTCMinutes()).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}`;
+}
+export const refLabel = (n: number) => `K-${String(n).padStart(4, '0')}`;
+export function savedText(l: Language, rows: { name: string; balance: number }[], purchase: { description: string; amount: number } | undefined, ref: string, at: number): string {
+  const lines = purchase
+    ? [pick(l, `Stock bought: ${purchase.description} · ${bold(formatNaira(purchase.amount))}`, `Stock wey you buy: ${purchase.description} · ${bold(formatNaira(purchase.amount))}`)] // not in design
+    : rows.map(r => r.balance > 0 ? pick(l, `${r.name} now owes you ${bold(formatNaira(r.balance))}.`, `${r.name} now owe you ${bold(formatNaira(r.balance))}.`)
+      : r.balance === 0 ? pick(l, `${r.name} has cleared the balance.`, `${r.name} don clear everything. Im no owe you again.`)
+      : pick(l, `${r.name} now has ${bold(formatNaira(-r.balance))} credit with you.`, `${r.name} now get ${bold(formatNaira(-r.balance))} credit with you.`)); // credit wording not in design
+  return `${bold(pick(l, 'Saved to your book.', 'E don enter book.'))}\n${lines.join('\n')}\n\n_Ref ${ref} · ${lagosStamp(at)}_`;
+}
+export const whoOwesLabel = (l: Language) => pick(l, 'Who owes me', 'Who dey owe me');
+export const savedInteractive = (l: Language, body: string): InteractiveReply => ({ kind: 'buttons', body: cut(body, 1024), buttons: [button('query:debtors', whoOwesLabel(l))] });
+
+// ---- 4.4 debtors ----
+export function debtorsText(l: Language, rows: { name: string; balance: number }[]): string {
+  if (!rows.length) return pick(l, 'Nobody owes you right now.', 'Nobody owe you now. Your book clean.');
+  const total = rows.reduce((t, r) => t + r.balance, 0);
+  const people = pick(l, `${rows.length} ${rows.length === 1 ? 'person' : 'people'}`, `${rows.length} ${rows.length === 1 ? 'person' : 'people'}`);
+  return [`${bold(pick(l, 'Who owes you', 'Who dey owe you'))} · ${people}`, `Total: ${bold(formatNaira(total))}`, '', ...rows.map((r, i) => `${i + 1}. ${r.name} · ${bold(formatNaira(r.balance))}`), '', pick(l, '_Largest first. Totals come from your saved entries._', '_Biggest first. Total na from your saved entries._')].join('\n');
+}
+export const balanceText = (l: Language, name: string, balance: number) =>
+  balance > 0 ? `${bold(name)} · ${pick(l, 'owes', 'owe')} ${bold(formatNaira(balance))}`
+  : balance === 0 ? `${bold(name)} · ${pick(l, 'owes nothing', 'e don clear')}`
+  : `${bold(name)} · ${pick(l, 'has credit', 'get credit')} ${bold(formatNaira(-balance))}`; // not in design
+
+// ---- 4.7 errors and edge states ----
+export const errors = {
+  down: (l: Language) => pick(l, 'Something went wrong on my side. *Nothing was saved.* Please try again shortly.', 'Something spoil for my side. *I never save anything.* Try again small time.'),
+  nothingPending: (l: Language) => pick(l, `There's nothing waiting to save. Tell me what happened, e.g. "Bayo paid 5,000".`, 'Nothing dey wait to save. Tell me wetin happen, like "Bayo pay 5,000".'),
+  stale: (l: Language) => pick(l, "That draft was replaced. Here's the latest one:", 'That one don change. Na this one be the latest, check am:'),
+  expired: (l: Language) => pick(l, "That draft expired, so it wasn't saved. Please send it again.", 'That entry wait too long so I no save am. Send am again.'),
+  twoDrafts: (l: Language) => pick(l, 'You have two unsaved drafts. Which one?', 'You get two entries wey never save. Which one?'),
+  unknown: (l: Language) => pick(l, 'I keep your book. Tell me who bought, who paid, or ask "who owes me".', 'I be your book. Tell me who buy, who pay, or ask "who dey owe me".'),
+};
+export const help = (l: Language) => pick(l,
+  'I keep your book. For example:\n- "Bayo paid 5,000"\n- "Mama Chidi took rice, 45,000 on credit"\n- "who owes me"\nType Pidgin to switch language.',
+  'I be your book. For example:\n- "Bayo pay 5,000"\n- "Mama Chidi carry rice, 45,000 for credit"\n- "who dey owe me"\nType English to switch language.'); // wording not in design

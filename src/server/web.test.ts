@@ -52,3 +52,34 @@ it('isolates separate demo tenants', async () => {
   expect((await POST(request({action:'reminder',name:'Only First',phone:'2348000000000'}, b))).status).toBe(400);
   expect((await POST(request({action:'reminder',name:'Only First',phone:'not-a-phone'}, a))).status).toBe(400);
 });
+it('routes interactive answers through the session-bound review ID and refuses other sessions', async () => {
+  // Fictional configuration only; the interactive path never calls the model, so no request is made.
+  Object.assign(process.env, { MODEL_BASE_URL: 'https://model.invalid/v1', MODEL_ID: 'fictional', MODEL_API_KEY: 'fictional-key' });
+  const one = await POST(request({action:'login',mode:'demo'}));
+  const two = await POST(request({action:'login',mode:'demo'}));
+  const a = one.headers.get('set-cookie')!.split(';')[0];
+  const b = two.headers.get('set-cookie')!.split(';')[0];
+  const auth = session(request({action:'logout'}, a))!;
+  const flag = 'Please clarify three eight: ₦3,800 or ₦38,000?';
+  const pending = store().propose({ownerId:auth.ownerId, channel:'web', senderId:auth.senderId, idempotencyKey:'interactive-fixture', rawInput:'Fixture Person paid three eight', flags:[flag],
+    entries:[{kind:'payment', customerName:'Fixture Person', amountQuestion:{source:'three eight', candidatesKobo:[380000,3800000], flag}}]});
+  const id = `answer:${pending.id}:2`;
+  // A different session cannot use this ID, and nothing changes.
+  const foreign = await POST(request({action:'interactive', id}, b));
+  expect((await foreign.json()).replyText).toContain('nothing waiting to save');
+  expect(store().pending(auth.ownerId, pending.id)!.status).toBe('review');
+  expect((await POST(request({action:'interactive', id}))).status).toBe(401);
+  expect((await POST(request({action:'interactive', id}, a, false))).status).toBe(403);
+  const answered = await POST(request({action:'interactive', id}, a));
+  const body = await answered.json();
+  expect(answered.status).toBe(200);
+  expect(body.pending.id).not.toBe(pending.id);
+  expect(body.interactive.buttons.map((x: {title: string}) => x.title)).toEqual(['1 Save', '2 Edit', '3 Cancel']);
+  expect(store().pending(auth.ownerId, body.pending.id)!.entries[0].amountKobo).toBe(3800000);
+  expect(store().events(auth.ownerId)).toHaveLength(0);
+  // The old button is now stale and cannot change the new review.
+  const stale = await (await POST(request({action:'interactive', id}, a))).json();
+  expect(stale.replyText.startsWith("That draft was replaced.")).toBe(true);
+  expect((await POST(request({action:'interactive', id:'bogus'}, a))).status).toBe(400);
+  delete process.env.MODEL_BASE_URL; delete process.env.MODEL_ID; delete process.env.MODEL_API_KEY;
+});

@@ -10,7 +10,7 @@ describe('stated naira parsing', () => {
     expect(parseNaira(s, `Paid ${s} today`)).toEqual({ kind: 'amount', kobo });
   });
   it('asks rather than guessing three eight', () => {
-    expect(parseNaira('three eight', 'Bayo pay three eight')).toEqual({ kind: 'ambiguous', candidatesKobo: [38000000, 380000000] });
+    expect(parseNaira('three eight', 'Bayo pay three eight')).toEqual({ kind: 'ambiguous', candidatesKobo: [380000, 3800000] });
   });
   it.each(['12,34', 'two three', '0', '99999999999999999999', '5.999'])('rejects %s', s => {
     expect(parseNaira(s, s).kind).toBe('invalid');

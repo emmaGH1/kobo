@@ -9,12 +9,15 @@ export default function DevPage() {
   const [reminderUrl, setReminderUrl] = useState('');
   const [result, setResult] = useState('Sign in to start. Demo data is fictional and isolated.');
   const [busy, setBusy] = useState(false);
+  const [choices, setChoices] = useState<{ id: string; title: string; description?: string }[]>([]);
   async function send(body: object) {
     setBusy(true);
     try {
       const res = await fetch('/api/dev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       setResult(data.replyText ?? data.error ?? (res.ok ? 'Done.' : 'Request failed.'));
+      const ui = data.interactive;
+      setChoices(ui ? (ui.buttons ?? ui.rows ?? []) : []);
       setReminderUrl(typeof data.reminderUrl === 'string' && data.reminderUrl.startsWith('https://wa.me/') ? data.reminderUrl : '');
     } catch { setResult('Network error. Check before retrying a save.'); }
     finally { setBusy(false); }
@@ -31,5 +34,6 @@ export default function DevPage() {
     <form onSubmit={e => submit(e, { action: 'reminder', name, phone })}><label>Reminder phone (international digits only) <input value={phone} onChange={e => setPhone(e.target.value)} /></label> <button disabled={busy}>Draft reminder for named customer</button></form>
     {reminderUrl && <p><a href={reminderUrl} target="_blank" rel="noreferrer">Open draft in WhatsApp (not sent)</a></p>}
     <pre style={{ whiteSpace: 'pre-wrap' }} aria-live="polite">{result}</pre>
+    {choices.length > 0 && <div role="group" aria-label="Reply options">{choices.map(c => <button key={c.id} disabled={busy} title={c.description} onClick={() => void send({ action: 'interactive', id: c.id })}>{c.title}</button>)} <small>Typed replies (1, 2, 3 or the amount) also work.</small></div>}
   </main>;
 }

@@ -32,6 +32,12 @@ export type ParsedToolCall =
   | { name: 'get_balance'; args: z.infer<typeof args.get_balance> }
   | { name: 'daily_summary'; args: z.infer<typeof args.daily_summary> };
 
+/** Number of function calls in a completed response, for telling "no tool chosen" from a malformed reply. */
+export function toolCallCount(response: unknown): number {
+  const result = z.object({ output: z.array(z.unknown()) }).safeParse(response);
+  return result.success ? result.data.output.filter(item => typeof item === 'object' && item !== null && 'type' in item && item.type === 'function_call').length : 0;
+}
+
 /** Accept exactly one completed known call; never act on partial, malformed or multiple calls. */
 export function parseToolResponse(response: unknown): ParsedToolCall {
   const result = z.object({ status: z.literal('completed'), output: z.array(z.unknown()) }).safeParse(response);

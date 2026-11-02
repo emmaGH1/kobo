@@ -16,7 +16,13 @@ CREATE TABLE IF NOT EXISTS pending_actions (
  proposal_json TEXT NOT NULL, flags_json TEXT NOT NULL,
  status TEXT NOT NULL CHECK(status IN ('review','editing','confirmed','cancelled','superseded')),
  created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+ confirm_ref INTEGER, confirmed_at INTEGER,
  UNIQUE(owner_id, idempotency_key), UNIQUE(owner_id, id)
+);
+CREATE TABLE IF NOT EXISTS sender_prefs (
+ owner_id TEXT NOT NULL REFERENCES owners(id), channel TEXT NOT NULL, sender_id TEXT NOT NULL,
+ language TEXT NOT NULL CHECK(language IN ('en','pg')), explicit_choice INTEGER NOT NULL,
+ PRIMARY KEY(owner_id, channel, sender_id)
 );
 CREATE TABLE IF NOT EXISTS ledger_events (
  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES owners(id), customer_id TEXT NOT NULL,
