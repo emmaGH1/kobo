@@ -1,77 +1,92 @@
-# Kobo demo narration (draft v2)
+# Kobo demo narration (draft v3)
 
-Voice: Emmanuel's ElevenLabs clone ("My Voice"). Generate one clip per scene, each with its own tone (see TONE), and only after this script is approved.
-Target: about 2:30. Hard limit: 3:00.
+Voice: Emmanuel's ElevenLabs clone ("My Voice"). Generate one clip per scene, each with its own tone, and only after this script is approved.
+Target: about 2:50. Hard limit: 3:00.
 Captions come from this file word for word. Pidgin lines get a small English subtitle.
-Spine: Nkechi is a fictional provision seller in a Nigerian market (sample character, never presented as a real person). The problem is "later" (selling and writing can't happen at the same moment). The answer: **You sell. Kobo remembers.**
+Spine: Nkechi is a fictional provision seller in a Nigerian market (sample character, never presented as a real person). The problem is "later": selling and writing can't happen at the same moment. The answer: **You sell. Kobo remembers.** Bayo's oil is the thread through the film.
+Every feature shown must work in the "your turn" web chat by submission, or its line is cut.
 
 ---
 
-## M1 · later (0:00 to 0:42)
-TONE: close, quiet, observant, like describing someone you've watched for years. Slower pace.
+## M1 · later (0:00 to 0:35)
+TONE: close, quiet, observant. Slower pace.
 MUSIC: soft keys or kalimba under market ambience. No drums.
 
 This is Nkechi. She sells provisions in the market.
 
-A customer picks up a pack of Cabin biscuits, one thousand five hundred. *"I go pay you tomorrow."* Nkechi nods. She's already serving the next person.
+A customer takes a pack of Cabin biscuits, one thousand five hundred. *"I go pay you tomorrow."* Nkechi nods. She's already serving the next person.
 
 Bayo takes a bottle of groundnut oil, three thousand eight hundred. *"Make I bring the money Friday."*
 
 She'll write it down later.
 
-By evening, it's ten people. Who took the oil? Was the biscuit paid for? Two thousand from who?
+By evening, it's ten people. Who took the oil? Was the biscuit paid for? How many cartons are left?
 
-It's all in her head. And her head is running the whole stall.
+It's all in her head. Not because she's careless. Because selling and writing can't happen at the same time.
 
-Every market in Nigeria is full of women like Nkechi. Not careless. Busy. Selling and writing just can't happen at the same time.
-
-## M2 · reveal (0:40 to 0:47)
+## M2 · reveal (0:35 to 0:41)
 TONE: a quiet smile, then confident.
-MUSIC: a single percussion hit lands on the logo, then a groove starts underneath.
+MUSIC: one percussion hit on the logo, then a groove underneath.
 
 So I built something that writes while she sells.
 
 *(on screen: kobo · You sell. Kobo remembers.)*
 
-## M3 · talk it (0:47 to 1:10)
-TONE: clear, steady, explaining. Normal pace.
-MUSIC: minimal pulse, low in the mix.
+## M3 · day one (0:41 to 0:56)
+TONE: clear, a little delighted.
+MUSIC: minimal pulse.
 
 It's called Kobo, and it lives in WhatsApp, where she already is.
 
-When Bayo takes the oil, Nkechi holds the mic and talks, the way she'd talk to her sister: *"Bayo carry one groundnut oil, three eight. E go pay Friday."* Five seconds, and she's back with her customer.
+On day one, she doesn't start from zero. She snaps a photo of her old notebook. Kobo reads the handwriting, lists who owes what, and waits for her to check it. One tap, and her whole notebook is in.
 
-Meta's Muse Voice writes it down. Muse Spark works out who took what, how much, and when the money is coming. Kobo reads it back, and nothing goes into the book until she taps save.
+## M4 · talk it (0:56 to 1:16)
+TONE: steady, explaining.
+MUSIC: minimal pulse continues.
 
-If a figure could mean two things, Kobo asks instead of guessing. And all the maths is plain code, not AI.
+Now, when Bayo takes the oil, she just talks: *"Bayo carry one groundnut oil, three eight. E go pay Friday."* Five seconds, and she's back with her customer.
 
-## M4 · kobo remembers (1:10 to 1:45)
-TONE: lively, a bit of energy, quicker.
+Kobo reads it back. The oil, the amount, the date. Nothing goes in the book until she taps save. If a figure could mean two things, it asks instead of guessing.
+
+## M5 · kobo remembers (1:16 to 1:52)
+TONE: lively, quicker.
 MUSIC: the full groove (afro / amapiano instrumental).
 
-Now Kobo remembers for her.
+And now Kobo remembers for her.
 
 *"Who dey owe me?"* Everyone, biggest first, and how long they've owed.
 
-*"Show me Bayo."* Every sale, every payment, every promise he made.
+*"How many oil remain?"* Every sale takes from her stock, every delivery adds to it, and Kobo warns her before she runs out.
 
-Stock she bought, money she collected, credit she gave. And every night, her whole day on one page, ready to screenshot.
+*"Wetin sell pass this week?"* Her best products and her best customers.
 
-## M5 · friday (1:45 to 2:20)
-TONE: warm, then quietly proud. This is the payoff.
-MUSIC: the groove drops out for one beat; a WhatsApp notification lands in the quiet; a soft version of the theme comes in under the rest.
+A customer wants proof? Kobo makes a receipt she can forward in one tap.
 
-Friday morning.
+And every night, her whole day on one page.
 
-Nkechi didn't write anything down. She didn't have to.
+## M6 · friday (1:52 to 2:20)
+TONE: warm, then quietly proud. The payoff.
+MUSIC: the groove drops out for one beat; a notification lands in the quiet; a soft theme comes in.
 
-Kobo messages her: Bayo's oil money is due today. Three thousand eight hundred.
+Friday morning. Nkechi didn't write anything down. She didn't have to.
 
-And it drafts a polite reminder she can forward to Bayo from her own phone. Kobo never talks to her customers. She does. She just doesn't have to remember anymore.
+Kobo tells her: Bayo's oil money is due today. Three thousand eight hundred.
 
-Bayo pays. She says so in one voice note. The book is square.
+It drafts a polite reminder she forwards to Bayo from her own phone. Kobo never talks to her customers. She does. She just doesn't have to remember anymore.
 
-## M6 · close (2:20 to 2:32)
+Bayo pays. One voice note, and the book is square.
+
+## M7 · under the hood (2:20 to 2:42)
+TONE: confident, matter-of-fact. For the judges.
+MUSIC: pulse returns, light.
+
+Under the hood, it's Meta all the way through.
+
+Muse Voice turns her voice notes into text, and Kobo gives it the names of her own customers and products, so "Bayo" and "Cabin" come out right.
+
+Muse Spark reads every message and every notebook photo, and decides which tool to call: record a sale, record a payment, check a balance. It never touches the numbers. Plain code does the maths, and nothing is ever erased.
+
+## M8 · close (2:42 to 2:52)
 TONE: warm, simple, close to M1.
 MUSIC: M1's soft theme returns to finish.
 
@@ -79,4 +94,4 @@ No more "later".
 
 You sell. Kobo remembers.
 
-*(end card: kobo · You sell. Kobo remembers. · Built with Meta's Muse models · url · github.com/emmaGH1/kobo)*
+*(end card: kobo · You sell. Kobo remembers. · Built with Meta's Muse Voice and Muse Spark · url · github.com/emmaGH1/kobo)*
