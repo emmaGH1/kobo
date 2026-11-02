@@ -68,12 +68,29 @@ export class Service implements BookkeepingService {
     if (current.length > 1) return { replyText: 'Multiple pending reviews need attention; use their review IDs.' };
     const p = current[0];
     const options = p && p.status === 'review' ? amountOptions(p) : [];
-    if (p && options.length && !/^(?:1 save|2 edit|3 cancel)$/i.test(text)) {
+    // A plain amount can answer a missing-amount question, but never fill multiple
+    // entries at once: the trader must resolve each one separately.
+    const missing = p?.entries.findIndex(e => !e.amountKobo) ?? -1;
+    const amountQuestion = p?.flags.some(f => f === 'Please clarify the stated amount.' || /^Please clarify .*: ₦/.test(f));
+    if (p && p.status === 'review' && missing >= 0 && amountQuestion && (options.length > 0 || !p.flags.some(f => /^Please clarify .*: ₦/.test(f))) && !/^(?:1 save|2 edit|3 cancel)$/i.test(text)) {
       const chosen = /^[1-9]$/.test(text) ? options[Number(text) - 1] : undefined;
-      const parsed = parseNaira(chosen ?? text, chosen ?? text);
-      if (parsed.kind === 'amount') {
-        const entries = p.entries.map(e => e.amountKobo ? e : {...e, amountKobo: parsed.kobo});
-        const flags = p.flags.filter(f => !/^Please clarify .*: ₦/.test(f) && f !== 'Missing or invalid amount');
+      // Bare 1/2/3 remain review commands unless explicitly offered as options.
+      const parsed = !chosen && /^[123]$/.test(text) ? undefined : parseNaira(chosen ?? text, chosen ?? text);
+      if (parsed?.kind === 'amount') {
+        const entries = p.entries.map((e, i) => i === missing ? {...e, amountKobo: parsed.kobo} : e);
+        const hasMore = entries.some(e => !e.amountKobo);
+        const flags = p.flags.filter(f => f !== 'Missing or invalid amount' && (hasMore || (f !== 'Please clarify the stated amount.' && !/^Please clarify .*: ₦/.test(f))));
+        const draft: PendingDraft = {ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: `${p.rawInput}\nClarification: ${text}`, entries, flags};
+        return review(this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft), this.store);
+      }
+    }
+    const dateQuestion = 'Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.';
+    const dateIndex = p?.entries.findIndex(e => e.needsDueDate) ?? -1;
+    if (p && p.status === 'review' && !amountQuestion && dateIndex >= 0) {
+      const dueDate = resolveDueDate(text);
+      if (dueDate) {
+        const entries = p.entries.map((e, i) => i === dateIndex ? {...e, dueDate, needsDueDate: false} : e);
+        const flags = p.flags.filter(f => f !== dateQuestion || entries.some(e => e.needsDueDate));
         const draft: PendingDraft = {ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: `${p.rawInput}\nClarification: ${text}`, entries, flags};
         return review(this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft), this.store);
       }
@@ -121,17 +138,20 @@ export class Service implements BookkeepingService {
         if (amount.kind === 'ambiguous') flags.push(`Please clarify ${f.amount_text}: ${amount.candidatesKobo.map(format).join(' or ')}?`);
         if (amount.kind === 'invalid') flags.push('Please clarify the stated amount.');
         let dueDate: string | undefined;
-        if (f.kind === 'sale' && !f.due_date_text && /\b(next week|soon|when market (?:is )?good)\b/i.test(f.evidence_text)) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
+        let needsDueDate = false;
+        if (f.kind === 'sale' && !f.due_date_text && /\b(next week|soon|when market (?:is )?good)\b/i.test(f.evidence_text)) needsDueDate = true;
         if (f.due_date_text) {
           if (f.kind === 'sale' && quoteOK && sourceHasSpan(f.evidence_text, f.due_date_text)) dueDate = resolveDueDate(f.due_date_text);
-          if (!dueDate) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
+          if (!dueDate && f.kind === 'sale') needsDueDate = true;
+          else if (!dueDate) flags.push('Please edit the invalid date on this transaction.');
         }
+        if (needsDueDate) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
         const customer = f.customer_name && quoteOK && sourceHasSpan(f.evidence_text, f.customer_name) ? this.store.findCustomer(this.ownerId, f.customer_name) : undefined;
         if (!customer && f.kind !== 'purchase' && subject) {
           const similar = this.store.customers(this.ownerId).filter(c => closeName(c.name, subject));
           if (similar.length) flags.push(`Similar customer: ${similar.map(c => c.name).join(', ')}. Please edit with the exact name.`);
         }
-        const main = { kind: f.kind, ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(dueDate ? { dueDate } : {}) };
+        const main = { kind: f.kind, ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(dueDate ? { dueDate } : {}), ...(needsDueDate ? { needsDueDate } : {}) };
         if (!f.remaining_text) return [main];
         const remaining = quoteOK ? parseNaira(f.remaining_text, f.evidence_text) : { kind: 'invalid' as const };
         if (f.kind !== 'sale' || amount.kind !== 'amount' || remaining.kind !== 'amount' || remaining.kobo >= amount.kobo || f.remaining_text === f.amount_text || call.args.entries.some(other => other !== f && other.kind === 'payment' && other.customer_name?.toLocaleLowerCase() === f.customer_name?.toLocaleLowerCase())) {
