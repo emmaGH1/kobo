@@ -1,57 +1,82 @@
-# Kobo demo narration (draft v1)
+# Kobo demo narration (draft v2)
 
-Voice: Emmanuel's own ElevenLabs clone ("My Voice"). Conversational, like explaining something you built to a friend. Slogan lines only at the logo, the intro and the close.
-Target: about 2:20. Hard limit: 3:00.
-Captions come from this file word for word. Generate one ElevenLabs clip per scene, and only after this script is approved, so one bad line costs one clip.
-
-Everything inside the phone uses Kobo's real message formats from `docs/DESIGN.md` section 4. Names and amounts are fictional sample data.
+Voice: Emmanuel's ElevenLabs clone ("My Voice"). Generate one clip per scene, each with its own tone (see TONE), and only after this script is approved.
+Target: about 2:30. Hard limit: 3:00.
+Captions come from this file word for word. Pidgin lines get a small English subtitle.
+Spine: the problem is "later" (selling and writing can't happen at the same moment). The answer: **You sell. Kobo remembers.**
 
 ---
 
-## S1 · hook (0:00 to 0:28)
+## M1 · later (0:00 to 0:40)
+TONE: close, quiet, personal, like telling a friend at night. Slower pace.
+MUSIC: soft keys or kalimba under shop ambience. No drums.
 
-Walk into any provision store in Nigeria and ask for something on credit. The madam won't open an app. She'll reach under the counter for a notebook.
+My mum runs a cosmetics shop.
 
-*Mama Chidi. Two bags of rice. Forty-five thousand. Paid twenty. Balance Friday.*
+When it's busy, someone picks up a cream, says they'll pay later, and she lets them go. She's still serving the next person, so she tells herself: I'll write it down later.
 
-That notebook is the whole business, and it fails her quietly. Pages tear, figures smudge, and when Friday comes, nobody agrees on what was said. At night, she still can't tell if she made money or just moved stock.
+Later, it's five people. Who took the cream? Did she pay half, or was that someone else?
 
-I didn't want to make her change how she works. She already runs everything on WhatsApp.
+It's all in her head. And her head is running the whole shop.
 
-## S2 · logo (0:28 to 0:33)
+It's the same in every provision store, every POS stand, every market stall. Not because people are careless. Selling and writing just can't happen at the same time.
 
-So I built Kobo.
+## M2 · reveal (0:40 to 0:47)
+TONE: a quiet smile, then confident.
+MUSIC: a single percussion hit lands on the logo, then a groove starts underneath.
 
-## S3 · how it thinks (0:33 to 1:10)
+So I built something that writes while she sells.
 
-Kobo is a bookkeeper that lives in WhatsApp. She sends a voice note the way she'd talk to her sister: in Pidgin, English, or both.
+*(on screen: kobo · You sell. Kobo remembers.)*
 
-Muse Voice writes it down. Muse Spark picks out who bought, what, how much, and when they'll pay.
+## M3 · how it thinks (0:47 to 1:15)
+TONE: clear, steady, explaining. Normal pace.
+MUSIC: minimal pulse, low in the mix.
 
-But Kobo doesn't save anything yet. It reads it back to her first.
+It's called Kobo, and it lives in WhatsApp, where she already is.
 
-And when something isn't clear, like "three eight", which could be three thousand eight hundred or thirty-eight thousand, it asks. It never guesses money.
+She holds the mic and talks, the way she'd talk to her sister: Pidgin, English, or both. Five seconds, and she's back with her customer.
 
-Once she says save, plain code does the maths, not the AI. And nothing is ever erased. A mistake gets a correcting line, like a real ledger.
+Meta's Muse Voice turns the voice note into text. Muse Spark works out who took what, how much they paid, and when the rest is coming.
 
-## S4 · a day with Kobo (1:10 to 1:55)
+Then Kobo reads it back. Nothing goes into the book until she taps save.
 
-Morning. She buys five bags of rice from Alhaji, two hundred and ninety thousand, cash. Kobo writes it as money out.
+## M4 · the one rule (1:15 to 1:40)
+TONE: slower, every word weighted. Let the pause breathe.
+MUSIC: cuts to **silence** on "three eight". Returns on "It asks."
 
-Noon. Mama Chidi takes rice on credit, pays twenty, and says she'll bring the rest on Friday. Kobo turns "Friday" into a real date.
+Unless Kobo isn't sure.
 
-Afternoon. Bayo pays "three eight". Kobo asks which one she means.
+*"Bayo pay me three eight."*
 
-Evening. "Who dey owe me?" Everyone, biggest first. Then her whole day on one page.
+Three thousand eight hundred? Or thirty-eight thousand?
 
-## S5 · payoff (1:55 to 2:10)
+Kobo doesn't pick. It asks.
 
-On Friday morning, Kobo reminds her that Mama Chidi's balance is due, and drafts a polite message she forwards from her own number. Kobo never messages her customers. She stays in charge.
+A bookkeeper that guesses is worse than no bookkeeper. And the maths is plain code, not AI. Every naira adds up exactly, and nothing is ever erased.
 
-## S6 · close (2:10 to 2:22)
+## M5 · a day (1:40 to 2:10)
+TONE: lively, a bit of energy, quicker.
+MUSIC: the full groove (afro / amapiano instrumental).
 
-No new app. No forms. Just talk.
+Here's a whole day.
 
-Kobo keeps the book.
+Morning: stock from the supplier. Money out.
 
-*(on screen: Built with Meta's Muse Spark and Muse Voice · url · github.com/emmaGH1/kobo)*
+Noon: a sale on credit, half paid, balance Friday. Kobo turns "Friday" into a date.
+
+Evening: *"Who dey owe me?"* Everyone, biggest first.
+
+And at night, the whole day on one page.
+
+## M6 · Friday (2:10 to 2:30)
+TONE: warm, back to M1's closeness.
+MUSIC: M1's soft theme returns with a light groove under it.
+
+On Friday morning, Kobo reminds her who's due, and drafts a polite message she sends from her own phone. Kobo never talks to her customers. She does.
+
+No more "later".
+
+You sell. Kobo remembers.
+
+*(end card: kobo · You sell. Kobo remembers. · Built with Meta's Muse models · url · github.com/emmaGH1/kobo)*
