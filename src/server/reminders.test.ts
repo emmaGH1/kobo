@@ -27,6 +27,8 @@ it('queues at exactly 08:00 Lagos only after opt-in and deduplicates repeated sc
  manager.markPresented('a','web','s',jobs[0].id);manager.later('a','web','s',jobs[0].id,at);
  manager.later('a','web','s',jobs[0].id,at+1000);expect(manager.tick(at+86400000-1)).toBe(0);expect(manager.tick(at+86400000)).toBe(1);
  manager.opt('a','web','s',false);expect(manager.queued('a','web','s','en')).toHaveLength(0);
+ vi.useFakeTimers({toFake:['Date']});vi.setSystemTime(at+2*86400000);
+ manager.opt('a','web','s',true);expect(manager.queued('a','web','s','en')).toHaveLength(1);
 });
 it('draft is only text and Already paid asks an amount, then a distinct confirmation; settled debt suppresses stale buttons',async()=>{
  vi.useFakeTimers({toFake:['Date']});vi.setSystemTime(Date.UTC(2026,10,6,7));

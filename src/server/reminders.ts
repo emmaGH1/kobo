@@ -13,7 +13,8 @@ export class Reminders {
   }
   opt(owner:string,channel:string,sender:string,enabled:boolean) {
     this.store.sqlite.prepare('INSERT INTO reminder_prefs VALUES(?,?,?,?) ON CONFLICT(owner,channel,sender) DO UPDATE SET enabled=excluded.enabled').run(owner,channel,sender,+enabled);
-    if (!enabled) this.store.sqlite.prepare("UPDATE due_reminders SET status='stopped' WHERE owner=? AND channel=? AND sender=?").run(owner,channel,sender);
+    if (!enabled) this.store.sqlite.prepare("UPDATE due_reminders SET status='stopped' WHERE owner=? AND channel=? AND sender=? AND status<>'settled'").run(owner,channel,sender);
+    else this.store.sqlite.prepare("UPDATE due_reminders SET status=CASE WHEN not_before<=? THEN 'ready' ELSE 'snoozed' END WHERE owner=? AND channel=? AND sender=? AND status='stopped'").run(Date.now(),owner,channel,sender);
   }
   /** Safe to call repeatedly from a scheduler. Due at 08:00 Africa/Lagos = 07:00 UTC. */
   tick(now=Date.now(), only?:{owner:string;channel:string;sender:string}, simulated=false): number {

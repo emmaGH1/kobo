@@ -117,6 +117,7 @@ export function createDemoHandler(options: DemoOptions) {
     if (!['message','action','notebook'].includes(operation)) return json({error:'Not found'},404);
     if (operation === 'message' && (typeof body.text !== 'string' || !body.text.trim() || body.text.length>4000)) return json({error:'Invalid text'},400);
     if (operation === 'action' && (typeof body.action !== 'string' || body.action.length>300)) return json({error:'Invalid action'},400);
+    const sessionToken=s.token;
     const lease = randomUUID();
     if (!db.prepare('UPDATE demo_sessions SET busy=?,busy_until=? WHERE token=? AND (busy IS NULL OR busy_until<?)').run(lease,Date.now()+120000,s.token,Date.now()).changes) return json({error:'Request in progress'},409);
     let capHit = false;
@@ -153,13 +154,15 @@ export function createDemoHandler(options: DemoOptions) {
         } else reply = await service.handleInteractive({...ctx,id:action});
       }
       if (capHit) return limited();
-      s = session(req)!;
+      const refreshed=session(req);
+      if(!refreshed)return json({error:'Demo session expired'},401);
+      s = refreshed;
       const lang = store.language(s.owner,'web',s.token)?.language === 'pg' ? 'pcm' : 'en';
       const i = reply.interactive;
       const view = {lang,kind:i?.kind ?? 'text',body:i?.body ?? reply.replyText,...(i?.footer?{footer:i.footer}:{}),...(i?.buttons?{buttons:i.buttons}:{}),...(i?.rows?{list:{button:i.listButton??'Choose',rows:i.rows}}:{}),...(reply.pending?{pendingId:reply.pending.id,pendingVersion:1}:{})};
       return json({...reply,replies:[view],remaining:DEMO_LIMIT-s.used});
     } catch { return json({error:'Request could not be processed. Nothing new was saved.'},400); }
-    finally { db.prepare('UPDATE demo_sessions SET busy=NULL,busy_until=NULL WHERE token=? AND busy=?').run(s!.token,lease); }
+    finally { db.prepare('UPDATE demo_sessions SET busy=NULL,busy_until=NULL WHERE token=? AND busy=?').run(sessionToken,lease); }
   };
 }
 let handler: ReturnType<typeof createDemoHandler> | undefined;

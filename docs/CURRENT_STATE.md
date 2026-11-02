@@ -16,6 +16,9 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Final ordered-continuation verification
+113 offline tests passed, 1 opt-in live skipped; typecheck/lint/build/diff-check passed. Disposable production-loopback smoke verified session, stock review/confirm, Friday preview/draft, customer history, insights and PNG; quota remained 12, zero model calls. PNG visually inspected after NGN fallback. No merge/deploy/external HTTPS/live image/sending claims. Final session-expiry lease and reminder re-opt-in regressions covered. Read the newest HANDOVER section for integration gates and documented design deviations; historical setup-only statements below are superseded by these checkpoints.
+
 ### Ordered continuation checkpoint 5
 After 0–4: exact-command stock in/out with integer-unit reviews, explicit confirmation/idempotency, nonnegative/safe totals, owner isolation and append-only movements; stock-left/low-threshold reads. Rolling seven-Lagos-day insights compute money totals and customer net collections, not fabricated item rankings/profit/visits. No automatic quantity adjustment from sale/purchase prose. 112 offline tests passed, 1 live skipped; typecheck/lint/build passed. No UI/protected-path changes or model calls. Details and command grammar in HANDOVER.
 

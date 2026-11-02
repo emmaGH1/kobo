@@ -74,6 +74,13 @@ it('enforces per-IP sessions, global daily kill switch, expiry and unsupported v
   vi.useFakeTimers({toFake:['Date']});vi.setSystemTime(Date.now()+31*60000);
   expect((await call('message',{text:'who owes me'},c)).status).toBe(401);
 });
+it('fails closed if the session expires during a provider response and releases its lease',async()=>{
+  const {store,call,start,cookie,requestToolResponse}=setup();const c=cookie(await start());
+  vi.useFakeTimers({toFake:['Date']});
+  requestToolResponse.mockImplementationOnce(async()=>{vi.setSystemTime(Date.now()+31*60000);return {status:'completed',output:[]};});
+  expect((await call('message',{text:'Bayo paid 100'},c)).status).toBe(401);
+  expect(store.sqlite.prepare('SELECT busy FROM demo_sessions').get()).toEqual({busy:null});
+});
 it('rejects oversized input, malformed requests and concurrent processing without duplicate provider work',async()=>{
   const {call,start,cookie,requestToolResponse}=setup();const c=cookie(await start());
   expect((await call('message',{text:'x'.repeat(9000)},c)).status).toBe(413);
