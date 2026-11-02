@@ -3,9 +3,9 @@ import { execFileSync } from 'node:child_process';
 import { readFile, access } from 'node:fs/promises';
 import { withAudio, transcribe, handleVoiceMessage } from './index';
 describe('voice', () => {
-  it('converts synthetic audio and reuses the harness multipart contract with bias', async () => {
+  it.each(['wav', 'ogg', 'webm'])('converts synthetic %s and reuses the harness multipart contract with bias', async format => {
     process.env.VOICE_API_KEY = 'synthetic-key';
-    const bytes = execFileSync('ffmpeg', ['-v','error','-f','lavfi','-i','sine=frequency=440:duration=0.1','-f','wav','pipe:1']);
+    const bytes = execFileSync('ffmpeg', ['-v','error','-f','lavfi','-i','sine=frequency=440:duration=0.1','-f',format,'pipe:1']);
     let path = '';
     const transport = vi.fn(async (_url, init) => {
       const form = init!.body as FormData;
@@ -18,6 +18,12 @@ describe('voice', () => {
     await withAudio(bytes, async p => { path = p; expect(await transcribe(p, ['Ada Example','Rice'], transport)).toBe('synthetic transcript'); expect((await readFile(p)).length).toBeGreaterThan(0); });
     await expect(access(path)).rejects.toThrow(); expect(transport).toHaveBeenCalledTimes(1);
     delete process.env.VOICE_API_KEY;
+  });
+  it('never interprets a transcribed choice as confirmation', async () => {
+    const app = { handleMessage: vi.fn() };
+    const reply = await handleVoiceMessage(app, { channel: 'web', senderId: 's', audioPath: 'trusted' }, [], async () => '1 save');
+    expect(reply.replyText).toContain('Voice alone cannot confirm');
+    expect(app.handleMessage).not.toHaveBeenCalled();
   });
   it('rejects arbitrary paths and deletes failed uploads', async () => {
     await expect(transcribe('/etc/passwd', [])).rejects.toThrow('Untrusted');

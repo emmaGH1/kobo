@@ -1,20 +1,29 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, chmod, writeFile, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, chmod, writeFile, readFile, rm, stat, readdir, lstat } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import type { BookkeepingService, MessageInput, MessageReply } from '../../core/contract';
 const exec = promisify(execFile);
 export const MAX_AUDIO_BYTES = 15_000_000;
-const root = () => resolve(process.env.KOBO_AUDIO_DIR || 'private/audio');
+// Runtime private media must never be traced into the build artifact.
+const root = () => resolve(/* turbopackIgnore: true */ process.env.KOBO_AUDIO_DIR || 'private/audio');
 /** Callback scope is the retention policy: always erase source + converted audio, even on failure. */
-export async function withAudio<T>(bytes: Uint8Array, use: (path: string) => Promise<T>): Promise<T> {
+export async function withAudio<T>(bytes: Uint8Array, consume: (path: string) => Promise<T>): Promise<T> {
   if (!bytes.length || bytes.length > MAX_AUDIO_BYTES) throw new Error('Invalid audio size');
   await mkdir(root(), { recursive: true, mode: 0o700 });
+  // Crash retention: sweep only our own orphan directories older than one hour on upload.
+  // Active work is bounded to under five minutes by subprocess + HTTP deadlines.
+  for (const name of await readdir(/* turbopackIgnore: true */ root())) {
+    if (!/^clip-[\w-]+$/.test(name)) continue;
+    const orphan = join(/* turbopackIgnore: true */ root(), name);
+    const info = await lstat(orphan).catch(() => undefined);
+    if (info?.isDirectory() && Date.now() - info.mtimeMs > 3600000) await rm(orphan, { recursive: true, force: true });
+  }
   const dir = await mkdtemp(join(root(), 'clip-'));
   const path = join(dir, 'input');
-  try { await writeFile(path, bytes, { mode: 0o600 }); return await use(path); }
+  try { await writeFile(path, bytes, { mode: 0o600 }); return await consume(path); }
   finally { await rm(dir, { recursive: true, force: true }); }
 }
 export async function transcribe(path: string, keywords: string[], transport: typeof fetch = fetch): Promise<string> {
@@ -24,7 +33,7 @@ export async function transcribe(path: string, keywords: string[], transport: ty
   if (!key) throw new Error('Voice is not configured');
   const wav = join(dirname(path), 'converted.wav');
   try {
-    await exec('ffmpeg', ['-nostdin','-hide_banner','-loglevel','error','-y','-i',path,'-map','0:a:0','-vn','-t','601','-ac','1','-ar','24000','-c:a','pcm_s16le','-map_metadata','-1',wav], { timeout: 45000, maxBuffer: 65536 });
+    await exec('ffmpeg', ['-nostdin','-hide_banner','-loglevel','error','-y','-protocol_whitelist','file,pipe','-format_whitelist','wav,mp3,ogg,mov,matroska,webm,aac','-i',path,'-map','0:a:0','-vn','-t','601','-ac','1','-ar','24000','-c:a','pcm_s16le','-map_metadata','-1',wav], { timeout: 45000, maxBuffer: 65536 });
     await chmod(wav, 0o600);
     const probe = await exec('ffprobe', ['-v','error','-show_streams','-show_format','-of','json',wav], { timeout: 10000, maxBuffer: 65536 });
     const info = JSON.parse(probe.stdout); const s = info.streams[0]; const duration = Number(info.format.duration);
@@ -45,6 +54,8 @@ export async function transcribe(path: string, keywords: string[], transport: ty
 export async function handleVoiceMessage(app: Pick<BookkeepingService, 'handleMessage'>, input: MessageInput, keywords: string[], recognize = transcribe): Promise<MessageReply & { transcript?: string }> {
   if (!input.audioPath) return app.handleMessage(input);
   const transcript = await recognize(input.audioPath, keywords);
+  // ASR output must never turn a misheard number into a money-changing confirmation.
+  if (/^(1(?: save)?|2(?: edit)?|3(?: cancel)?)$/i.test(transcript.trim())) return { transcript, replyText: `Transcript: “${transcript}”\n\nPlease use the review buttons or type 1 save / 2 edit / 3 cancel. Voice alone cannot confirm a review.` };
   // Do not concatenate a caption: it could silently change what was heard.
   const reply = await app.handleMessage({ channel: input.channel, senderId: input.senderId, text: transcript });
   const quote = `Transcript: “${transcript}”`;
