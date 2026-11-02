@@ -3,13 +3,15 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { balances, money, type Customer, type LedgerEvent } from '../core/ledger';
+import { add, balances, money, type Customer, type LedgerEvent } from '../core/ledger';
 
 export interface EntryDraft {
-  kind: 'sale' | 'payment' | 'opening_debt' | 'reversal';
+  kind: 'sale' | 'payment' | 'opening_debt' | 'reversal' | 'purchase';
+  description?: string;
   customerId?: string;
   amountKobo?: number;
   reversalOf?: string;
+  dueDate?: string;
 }
 export interface PendingDraft {
   ownerId: string; channel: string; senderId: string; idempotencyKey: string;
@@ -22,6 +24,11 @@ interface PendingRow {
   id: string; owner_id: string; channel: string; sender_id: string; idempotency_key: string;
   raw_input: string; proposal_json: string; flags_json: string; status: string; created_at: number; expires_at: number;
 }
+export function validDueDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
 export class LedgerStore {
   readonly sqlite: Database.Database;
   readonly db: ReturnType<typeof drizzle>;
@@ -32,19 +39,29 @@ export class LedgerStore {
     this.sqlite.pragma('journal_mode = WAL');
     this.sqlite.pragma('busy_timeout = 5000');
     this.sqlite.exec(readFileSync(resolve('db/schema.sql'), 'utf8'));
+    this.sqlite.transaction(() => {
+      const columns = this.sqlite.pragma('table_info(ledger_events)') as {name: string}[];
+      if (!columns.some(column => column.name === 'due_date')) this.sqlite.exec('ALTER TABLE ledger_events ADD COLUMN due_date TEXT');
+    }).immediate();
     this.db = drizzle(this.sqlite);
   }
   customers(ownerId: string): Customer[] {
     return this.sqlite.prepare('SELECT id, owner_id AS ownerId, name FROM customers WHERE owner_id=? ORDER BY name').all(ownerId) as Customer[];
   }
   findCustomer(ownerId: string, name: string): Customer | undefined {
-    return this.sqlite.prepare(`SELECT c.id,c.owner_id AS ownerId,c.name FROM customers c
+    const matches = this.sqlite.prepare(`SELECT c.id,c.owner_id AS ownerId,c.name FROM customers c
       WHERE c.owner_id=? AND (c.name=? COLLATE NOCASE OR c.id IN
-      (SELECT customer_id FROM customer_aliases WHERE owner_id=? AND alias=? COLLATE NOCASE))`).get(ownerId, name, ownerId, name) as Customer | undefined;
+      (SELECT customer_id FROM customer_aliases WHERE owner_id=? AND alias=? COLLATE NOCASE))`).all(ownerId, name, ownerId, name) as Customer[];
+    // A name and another customer's alias can collide: never choose arbitrarily.
+    return matches.length === 1 ? matches[0] : undefined;
   }
   events(ownerId: string): LedgerEvent[] {
     return this.sqlite.prepare(`SELECT id,owner_id AS ownerId,customer_id AS customerId,kind,amount_kobo AS amountKobo,
-      reversal_of AS reversalOf,occurred_at AS occurredAt FROM ledger_events WHERE owner_id=? ORDER BY occurred_at,rowid`).all(ownerId) as LedgerEvent[];
+      reversal_of AS reversalOf,due_date AS dueDate,occurred_at AS occurredAt FROM ledger_events WHERE owner_id=? ORDER BY occurred_at,rowid`).all(ownerId) as LedgerEvent[];
+  }
+  spent(ownerId: string, start: number, end: number): number {
+    const rows = this.sqlite.prepare('SELECT amount_kobo AS amount FROM stock_purchases WHERE owner_id=? AND occurred_at>=? AND occurred_at<?').all(ownerId, start, end) as {amount:number}[];
+    return rows.reduce((total, row) => add(total, money(row.amount)), 0);
   }
   pending(ownerId: string, id: string): Pending | undefined {
     const row = this.sqlite.prepare('SELECT * FROM pending_actions WHERE owner_id=? AND id=?').get(ownerId, id) as PendingRow | undefined;
@@ -62,8 +79,14 @@ export class LedgerStore {
     const flags: string[] = [];
     if (!entries.length) flags.push('No ledger entries supplied');
     for (const entry of entries) {
+      if (entry.kind === 'purchase') {
+        if (entries.length !== 1 || !entry.description?.trim() || entry.description.length > 200 || entry.customerId || entry.dueDate || entry.reversalOf) flags.push('Invalid stock purchase');
+        try { money(entry.amountKobo); } catch { flags.push('Missing or invalid amount'); }
+        continue;
+      }
       if (!this.customers(ownerId).some(c => c.id === entry.customerId)) flags.push('Unknown customer');
       try { money(entry.amountKobo); } catch { flags.push('Missing or invalid amount'); }
+      if (entry.dueDate !== undefined && (entry.kind !== 'sale' || !validDueDate(entry.dueDate))) flags.push('Invalid due date');
       if (entry.kind === 'reversal') {
         const target = this.events(ownerId).find(e => e.id === entry.reversalOf);
         if (!target || target.kind === 'reversal' || target.customerId !== entry.customerId || target.amountKobo !== entry.amountKobo) flags.push('Invalid reversal target');
@@ -105,10 +128,17 @@ export class LedgerStore {
       if (pending.status !== 'review' || pending.expiresAt <= Date.now()) throw new Error('Pending action is stale or expired');
       if (pending.flags.length || this.validate(ownerId,pending.entries).length) throw new Error('Resolve all flags before saving');
       const now = Date.now();
-      const insert = this.sqlite.prepare(`INSERT INTO ledger_events (id,owner_id,customer_id,kind,amount_kobo,reversal_of,pending_id,sequence,occurred_at) VALUES (?,?,?,?,?,?,?,?,?)`);
+      if (pending.entries[0]?.kind === 'purchase') {
+        const entry = pending.entries[0];
+        this.sqlite.prepare('INSERT INTO stock_purchases(id,owner_id,description,amount_kobo,pending_id,occurred_at) VALUES(?,?,?,?,?,?)').run(randomUUID(),ownerId,entry.description!,entry.amountKobo!,id,now);
+        this.spent(ownerId, 0, Number.MAX_SAFE_INTEGER); // Reject aggregate overflow transactionally.
+        this.sqlite.prepare("UPDATE pending_actions SET status='confirmed' WHERE id=?").run(id);
+        return [];
+      }
+      const insert = this.sqlite.prepare(`INSERT INTO ledger_events (id,owner_id,customer_id,kind,amount_kobo,reversal_of,pending_id,sequence,occurred_at,due_date) VALUES (?,?,?,?,?,?,?,?,?,?)`);
       const ids: string[] = pending.entries.map((entry, sequence) => {
         const eventId = randomUUID();
-        insert.run(eventId,ownerId,entry.customerId!,entry.kind,entry.amountKobo!,entry.reversalOf ?? null,id,sequence,now);
+        insert.run(eventId,ownerId,entry.customerId!,entry.kind,entry.amountKobo!,entry.reversalOf ?? null,id,sequence,now,entry.dueDate ?? null);
         this.sqlite.prepare('INSERT INTO evidence(id,owner_id,event_id,transcript,audio_path) VALUES(?,?,?,?,NULL)').run(randomUUID(),ownerId,eventId,pending.rawInput);
         return eventId;
       });

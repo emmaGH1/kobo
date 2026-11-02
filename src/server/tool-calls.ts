@@ -9,12 +9,14 @@ const factSchema = z.object({
 }).strict();
 const args = {
   record_facts: z.object({ facts: z.array(factSchema).min(1).max(20) }).strict(),
+  record_purchase: z.object({ description: z.string().trim().min(1).max(200).nullable(), amount_text: z.string().trim().min(1).max(100).nullable() }).strict(),
   list_debtors: z.object({}).strict(),
   get_balance: z.object({ customer_name: z.string().trim().min(1).max(200) }).strict(),
   daily_summary: z.object({}).strict(),
 } as const;
 export type ParsedToolCall =
   | { name: 'record_facts'; args: z.infer<typeof args.record_facts> }
+  | { name: 'record_purchase'; args: z.infer<typeof args.record_purchase> }
   | { name: 'list_debtors'; args: z.infer<typeof args.list_debtors> }
   | { name: 'get_balance'; args: z.infer<typeof args.get_balance> }
   | { name: 'daily_summary'; args: z.infer<typeof args.daily_summary> };
@@ -31,6 +33,7 @@ export function parseToolResponse(response: unknown): ParsedToolCall {
   try { raw = JSON.parse(call.data.arguments); } catch { throw new Error('Invalid tool arguments'); }
   switch (call.data.name) {
     case 'record_facts': return { name: 'record_facts', args: args.record_facts.parse(raw) };
+    case 'record_purchase': return { name: 'record_purchase', args: args.record_purchase.parse(raw) };
     case 'list_debtors': return { name: 'list_debtors', args: args.list_debtors.parse(raw) };
     case 'get_balance': return { name: 'get_balance', args: args.get_balance.parse(raw) };
     case 'daily_summary': return { name: 'daily_summary', args: args.daily_summary.parse(raw) };

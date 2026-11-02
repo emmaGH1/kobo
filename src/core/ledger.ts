@@ -6,6 +6,7 @@ export interface LedgerEvent {
   kind: EventKind;
   amountKobo: number;
   reversalOf?: string;
+  dueDate?: string | null;
   occurredAt: number;
 }
 export interface Customer { id: string; ownerId: string; name: string }

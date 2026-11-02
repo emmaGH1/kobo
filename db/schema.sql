@@ -33,6 +33,14 @@ CREATE TABLE IF NOT EXISTS evidence (
  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES owners(id), event_id TEXT NOT NULL REFERENCES ledger_events(id),
  transcript TEXT NOT NULL, audio_path TEXT
 );
+CREATE TABLE IF NOT EXISTS stock_purchases (
+ id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES owners(id), description TEXT NOT NULL,
+ amount_kobo INTEGER NOT NULL CHECK(typeof(amount_kobo)='integer' AND amount_kobo > 0 AND amount_kobo <= 9007199254740991),
+ pending_id TEXT NOT NULL, occurred_at INTEGER NOT NULL,
+ FOREIGN KEY(owner_id, pending_id) REFERENCES pending_actions(owner_id, id), UNIQUE(pending_id)
+);
+CREATE TRIGGER IF NOT EXISTS stock_no_update BEFORE UPDATE ON stock_purchases BEGIN SELECT RAISE(ABORT, 'stock purchases are append-only'); END;
+CREATE TRIGGER IF NOT EXISTS stock_no_delete BEFORE DELETE ON stock_purchases BEGIN SELECT RAISE(ABORT, 'stock purchases are append-only'); END;
 CREATE INDEX IF NOT EXISTS ledger_owner ON ledger_events(owner_id, occurred_at);
 CREATE INDEX IF NOT EXISTS pending_conversation ON pending_actions(owner_id, channel, sender_id, status);
 CREATE TRIGGER IF NOT EXISTS ledger_no_update BEFORE UPDATE ON ledger_events BEGIN SELECT RAISE(ABORT, 'ledger is append-only'); END;
