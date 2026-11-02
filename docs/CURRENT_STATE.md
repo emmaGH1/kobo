@@ -31,6 +31,12 @@ Dedicated Kobo credential follow-up: owner saved key in ignored .env.local. Both
 
 Owner-approved catalog bypass: after screenshot showed working Muse playground, owner authorized one minimal Responses call with dedicated Kobo key (`model: muse-spark-1.3`, `input: Reply with OK.`). Actual result HTTP 404, code `model_not_found`, message `The requested model was not found.`, request ID `faa9e48e-9115-497d-907e-f55d04b1e435`. No tool schema supplied, no follow-up call or retry. Thus dedicated-key inference independently fails, not merely catalog enumeration. Official base URL/model/auth and local credential loading/format checks match docs; account/project/key entitlement not verified. Next action: compare non-secret playground generated code and same team/project key scope, then Meta support with request ID if matching. Docs-only evidence update; no runtime changes or suite rerun.
 
+Gateway follow-up: `src/server/MUSE-PROOF.md` records a successful synthetic Vercel AI Gateway `meta/muse-spark-open` tool-call response. This supersedes the earlier claim that no successful tool-call shape was verified; it does not establish a working bookkeeping journey or direct Meta API access.
+
+Latest core work adds an isolated, tested Responses function-call parser and preliminary deterministic fact checks in `src/server/tool-calls.ts`. It is **not connected** to a service, provider request, routes or ledger. Text occurrence alone does not establish the meaning of an amount or authorize a write. Checkpoint B is incomplete: no handleMessage, tool execution, authentication, owner-checked routes, /dev page or token logging. Due dates, purchase events, spent summary and reminders are also not implemented. The three live acceptance tests were not run because the required authenticated flow is absent. This is not ready for real customer data.
+
+Verification: 27 offline tests passed; TypeScript, lint and production build passed. No live API calls in this session. No voice/WhatsApp integration.
+
 ## Design lane
 Not started. Owns src/components/ and src/app/(app)/. No approved visual direction; neutral root placeholder only. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
 
