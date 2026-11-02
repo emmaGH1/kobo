@@ -1,4 +1,11 @@
-# Muse tool-call proof — blocked
+# Muse tool-call proof — Vercel AI Gateway verified
+
+## Successful fallback proof
+After the owner confirmed billing, GET `https://ai-gateway.vercel.sh/v1/credits` returned HTTP 200, balance `5`, total used `0`. One real POST to `/v1/responses` using model `meta/muse-spark-open` then returned HTTP 200 with `status: completed`. The Responses request used one user input message, flat `get_balance` function definition with JSON-schema `customer_name`, `tool_choice: auto`, `max_output_tokens: 1024`, and `store: false`. The response `output` array contained a `function_call` item with `name: get_balance`, `call_id`, `status: completed`, and JSON-string `arguments: {"customer_name":"Chika"}`. The response also included a reasoning item; reasoning content is not persisted here. No tool was executed and no ledger write occurred.
+
+The response reported 636 input tokens, 100 output tokens, 736 total tokens (34 reasoning tokens included in output), and gateway cost $0.00122. This is one successful synthetic tool-call proof, not a live bookkeeping flow or a guarantee about future calls. Earlier 403 billing assertions were too confident: the credit became visible only after the prior attempt, and the specific propagation or scope cause remains unknown.
+
+
 
 ## Scope
 Owner-authorized text-only synthetic integration proof before checkpoint B. No voice, WhatsApp, private harness transcripts, or real customer data sent. Existing server credential loaded without displaying or copying it. No automatic retry loop or alternate model substitution.
