@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { LedgerStore } from './ledger-store';
 import { Service } from './service';
 import type { ModelProvider } from './model-provider';
@@ -67,6 +67,19 @@ it('records a confirmed stock purchase once and includes it in spent', async () 
   expect(() => store.sqlite.prepare('DELETE FROM stock_purchases').run()).toThrow();
   response = call('daily_summary', {});
   expect((await service.handleMessage({ ...ctx, text:'summary' })).replyText).toContain('stock spent ₦2000.00');
+});
+it('shows negative daily sales when a previous-day sale is reversed today', async () => {
+  const clock = vi.spyOn(Date, 'now');
+  try {
+    clock.mockReturnValue(Date.now() - 2 * 86400000);
+    const sale = store.propose({ownerId:'a', channel:'web', senderId:'session', idempotencyKey:'sale', rawInput:'synthetic', entries:[{kind:'sale', customerId:'c', amountKobo:10000}]});
+    const [event] = store.confirm('a', sale.id, 'web', 'session');
+    clock.mockRestore();
+    const correction = store.propose({ownerId:'a', channel:'web', senderId:'session', idempotencyKey:'reverse', rawInput:'synthetic', entries:[{kind:'reversal',customerId:'c',amountKobo:10000,reversalOf:event.id}]});
+    store.confirm('a',correction.id,'web','session');
+    response = call('daily_summary', {});
+    expect((await service.handleMessage({ ...ctx, text:'summary' })).replyText).toContain('sales -₦100.00');
+  } finally { clock.mockRestore(); }
 });
 it('does not choose arbitrarily when a name collides with another alias', () => {
   store.sqlite.exec("INSERT INTO customers VALUES ('other','a','Another'); INSERT INTO customer_aliases VALUES ('a','other','Ada Example');");

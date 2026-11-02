@@ -13,7 +13,7 @@ export const tools: ToolRequest['tools'] = [
   { type: 'function', name: 'get_balance', description: 'Get a customer balance.', parameters: { type: 'object', properties: { customer_name: { type: 'string' } }, required: ['customer_name'], additionalProperties: false } },
   { type: 'function', name: 'daily_summary', description: 'Get today’s sales and collections.', parameters: empty },
 ];
-const format = (n: number) => `₦${Math.floor(Math.abs(n) / 100)}.${String(Math.abs(n) % 100).padStart(2, '0')}`;
+const format = (n: number) => `${n < 0 ? '-' : ''}₦${Math.floor(Math.abs(n) / 100)}.${String(Math.abs(n) % 100).padStart(2, '0')}`;
 function review(p: Pending, store: LedgerStore): MessageReply {
   const customers = store.customers(p.ownerId);
   const summary = p.entries.map(e => `${e.kind}: ${e.kind === 'purchase' ? e.description ?? 'unknown stock' : customers.find(c => c.id === e.customerId)?.name ?? 'unknown customer'} — ${e.amountKobo ? format(e.amountKobo) : 'unknown amount'}${e.dueDate ? `, due ${e.dueDate}` : ''}`).join('\n');
@@ -61,7 +61,7 @@ export class Service implements BookkeepingService {
       const c = this.store.findCustomer(this.ownerId, call.args.customer_name);
       if (!c) return { replyText: 'Customer not found.' };
       const amount = balances(this.store.events(this.ownerId))[c.id] ?? 0;
-      return { replyText: `${c.name}: ${amount < 0 ? 'credit ' : ''}${format(amount)}` };
+      return { replyText: `${c.name}: ${amount < 0 ? 'credit ' : ''}${format(Math.abs(amount))}` };
     }
     if (call.name === 'daily_summary') {
       const now = new Date(); const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
