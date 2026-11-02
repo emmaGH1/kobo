@@ -43,8 +43,9 @@ export function Hero() {
       </h1>
       <div className="mt-10 grid gap-8 lg:grid-cols-12">
         <p className="max-w-[46ch] font-sans text-[18px] leading-[1.6] text-ink-2 lg:col-span-6">
-          Send a voice note in Pidgin or English. Kobo writes it down, asks when a figure is unclear,
-          and saves nothing until you say so. Every total is counted by code, never guessed.
+          Send a voice note in Pidgin or English. Kobo records the stock you buy, what you sell on credit
+          and who owes you, reminds you when payment is due, and saves nothing until you say so. Every
+          total is counted by code, never guessed.
         </p>
         <div className="flex flex-wrap items-start gap-3 font-sans lg:col-span-5 lg:col-start-8 lg:justify-end">
           <a href="#try" className="flex h-12 items-center gap-2 rounded-full bg-ink px-6 text-[15px] text-paper">
@@ -113,12 +114,12 @@ export function Rule() {
 }
 
 const keeps = [
-  { t: "Voice notes in Pidgin or English", d: "Talk the way you talk at the stall. Typing works too. Kobo replies in the language you used." },
+  { t: "Stock you buy", d: "“I buy 5 bag rice from Alhaji, 290k.” Kobo records it as money out, so the day shows what you spent as well as what came in." },
+  { t: "Sales on credit, paid bit by bit", d: "A sale, a part payment, or both in one sentence. Each customer’s running balance updates after you confirm." },
+  { t: "Payment dates and reminders", d: "“The remain she go pay Friday.” Kobo turns that into a date and reminds you that morning, with a polite message ready for you to forward. It never messages your customers itself." },
   { t: "“Who dey owe me?”", d: "Everyone who owes you, biggest first, with each customer’s full history one tap away." },
-  { t: "Credit sales and part payments", d: "A sale, a part payment, or both in one sentence. Each customer’s running balance updates after you confirm." },
+  { t: "Your day on one page", d: "Every evening: credit sales, money collected, stock bought and who still owes, counted from the entries you confirmed." },
   { t: "Undo without erasing", d: "Tap Undo and Kobo adds a correction for you to confirm. The original entry stays in the book." },
-  { t: "Your day on one card", d: "A receipt-style summary in your chat each evening: credit given, money collected, who owes the most." },
-  { t: "Nothing to install", d: "Kobo is a contact in the WhatsApp you already have open all day. No app, no forms, no password." },
 ];
 
 export function Keeps() {

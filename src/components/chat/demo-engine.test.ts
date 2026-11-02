@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDemo, formatNaira, naira, step, type DemoState } from "./demo-engine";
+import { createDemo, dayTotals, dueReminders, formatNaira, naira, nextWeekday, step, type DemoState } from "./demo-engine";
 
 const NOW = new Date(2026, 10, 1, 16, 12);
 const bal = (s: DemoState, id: string) => s.customers.find((c) => c.id === id)!.balance;
@@ -91,5 +91,57 @@ describe("scripted demo", () => {
     const r = step(createDemo("en"), { text: "sell 40 bags of cement to Kunle" });
     expect(r.replies[0].body).toContain("I keep your book");
     expect(r.state.pending).toBeNull();
+  });
+});
+
+describe("stock, due dates, reminders and the day summary", () => {
+  const MON = new Date(2026, 10, 2, 7, 52); // Monday 2 Nov 2026
+  const FRI = new Date(2026, 10, 6, 8, 0);
+
+  it("records stock bought as money out, only after confirmation", () => {
+    let r = step(createDemo(), { text: "I buy 5 bag rice from Alhaji, 290k", now: MON });
+    expect(r.replies[0].body).toContain("*₦290,000*");
+    expect(r.state.purchases).toHaveLength(0);
+    r = step(r.state, { text: "1", now: MON });
+    expect(r.state.purchases.map((p) => p.amount)).toEqual([naira(290000)]);
+    expect(r.replies[0].body).toContain("₦290,000");
+  });
+
+  it("turns 'Friday' into a date in code and reminds on that morning", () => {
+    let r = step(createDemo(), { text: "Mama Chidi carry rice 45k, she pay 20k, remain Friday", now: MON });
+    expect(r.replies[0].body).toContain("Fri 6 Nov");
+    expect(r.replies[0].body).toContain("₦25,000");
+    r = step(r.state, { text: "1", now: MON });
+    expect(r.replies[0].body).toContain("I go remind you Fri 6 Nov");
+    expect(dueReminders(r.state, new Date(2026, 10, 5, 8))).toHaveLength(0); // Thursday: nothing
+    const rem = dueReminders(r.state, FRI);
+    expect(rem).toHaveLength(1);
+    expect(rem[0].body).toContain("*₦25,000*");
+    expect(rem[0].body).toContain("*₦33,500*");
+    const draft = step(r.state, { action: "remind-draft:mama-chidi", now: FRI });
+    expect(draft.replies[0].body).toContain("₦25,000 balance for the 2 bag rice");
+    expect(draft.replies[0].footer).toContain("Nothing go out without you");
+  });
+
+  it("a promise with no day gets no due date", () => {
+    const r = step(createDemo(), { text: "Mama Chidi carry rice 45k, she pay 20k", now: MON });
+    expect(r.replies[0].body).not.toContain("Remain go pay");
+  });
+
+  it("sums the day from confirmed entries", () => {
+    let s = createDemo();
+    s = step(s, { text: "I buy 5 bag rice from Alhaji, 290k", now: MON }).state;
+    s = step(s, { text: "1", now: MON }).state;
+    s = step(s, { text: "Mama Chidi carry rice 45k, she pay 20k, remain Friday", now: MON }).state;
+    s = step(s, { text: "1", now: MON }).state;
+    expect(dayTotals(s, MON)).toMatchObject({ credit: naira(45000), collected: naira(20000), stock: naira(290000), entries: 3 });
+    const sum = step(s, { text: "How market today?", now: MON });
+    expect(sum.replies[0].body).toContain("Mon 2 Nov");
+    expect(sum.replies[0].body).toContain("*₦290,000*");
+    expect(sum.replies[0].body).toContain("*₦126,600*");
+  });
+
+  it("nextWeekday is strictly after the given day", () => {
+    expect(nextWeekday(new Date(2026, 10, 6), 5).getDate()).toBe(13); // Friday -> next Friday
   });
 });

@@ -14,7 +14,7 @@ export type Lang = "pcm" | "en";
 
 export interface ChatMessage {
   id: string;
-  from: "kobo" | "you";
+  from: "kobo" | "you" | "date";
   /** Trader messages. */
   text?: string;
   voice?: boolean;

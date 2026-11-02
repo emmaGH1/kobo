@@ -21,6 +21,9 @@ The owner rated v1 1/10. The landing was rebuilt with the Walos layout, the Lave
 ## v3 redesign (2026-11-02)
 The owner found v2 generic. The landing was rebuilt around a self-playing film (phone conversation plus a book that writes itself, generated from the tested engine) under the philosophy "show the transformation, not the interface". Verified: 15 vitest, eslint, typecheck, build; 1440 and 390 with no overflow; film recorded to docs/design/probe-v3/kobo-film.mp4.
 
+## v3.1: the film shows the whole day (2026-11-02)
+At the owner's request the film now covers six chapters: stock bought, credit sale with due date, unclear amount, who owes me, day summary, Friday reminder with a drafted customer message. The demo engine gained purchases, due dates (code resolves weekdays), dueReminders, reminderDraft and the summary; 21 tests. **Core must build purchases, due dates, reminders and the summary changes** (DESIGN.md, "Core lane: needed before the landing page's claims are true").
+
 ## Blockers / unresolved decisions
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 

@@ -31,16 +31,34 @@ interface Entry {
   owes: number;
   ref?: string;
 }
+/** A promised payment date. `iso` is YYYY-MM-DD, resolved by code from words like "Friday". */
+export interface Due {
+  iso: string;
+  label: string;
+  amount: number;
+  item: string;
+  soldOn: string;
+}
 interface Customer {
   id: string;
   name: string;
   balance: number;
   entries: Entry[];
   lastPaid?: string;
+  due?: Due;
+}
+/** Stock the trader bought: money out of the shop, not tied to a customer. */
+export interface Purchase {
+  date: string;
+  item: string;
+  supplier: string;
+  amount: number;
+  ref: string;
 }
 type Pending =
-  | { kind: "entry"; version: number; customer: string; sale: number; paid: number; heard?: string }
-  | { kind: "reversal"; version: number; customer: string; sale: number; paid: number; ref: string };
+  | { kind: "entry"; version: number; customer: string; sale: number; paid: number; heard?: string; item?: string; due?: Due }
+  | { kind: "reversal"; version: number; customer: string; sale: number; paid: number; ref: string }
+  | { kind: "purchase"; version: number; item: string; supplier: string; amount: number; heard?: string };
 interface Saved {
   customer: string;
   sale: number;
@@ -50,7 +68,9 @@ interface Saved {
 
 export interface DemoState {
   lang: Lang;
+  shop: string;
   customers: Customer[];
+  purchases: Purchase[];
   pending: Pending | null;
   awaiting: { customer: string; heard: string; options: number[]; version: number } | null;
   lastSaved: Saved | null;
@@ -68,6 +88,8 @@ export function createDemo(lang: Lang = "pcm"): DemoState {
   });
   return {
     lang,
+    shop: "Nkechi Provisions",
+    purchases: [],
     customers: [
       c(
         "mama-chidi",
@@ -112,7 +134,17 @@ const pick = <T,>(lang: Lang, pcm: T, en: T): T => (lang === "pcm" ? pcm : en);
 const totalOwed = (s: DemoState) => s.customers.reduce((a, c) => a + c.balance, 0);
 const find = (s: DemoState, id: string) => s.customers.find((c) => c.id === id)!;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const day = (d: Date) => `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+const longDay = (d: Date) => `${DAYS[d.getDay()]} ${day(d)}`;
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** Next given weekday strictly after `from` (0 = Sunday). Deterministic, no model involved. */
+export function nextWeekday(from: Date, weekday: number): Date {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const add = (weekday - d.getDay() + 7) % 7 || 7;
+  d.setDate(d.getDate() + add);
+  return d;
+}
 function stamp(d: Date) {
   const h = d.getHours();
   const m = d.getMinutes().toString().padStart(2, "0");
@@ -125,13 +157,38 @@ function text(lang: Lang, body: string, extra: Partial<ReplyView> = {}): ReplyVi
   return { lang, kind: "text", body, ...extra };
 }
 
+const SAVE_BUTTONS = [
+  { id: "save", title: "1 Save" },
+  { id: "edit", title: "2 Edit" },
+  { id: "cancel", title: "3 Cancel" },
+];
+
+function purchaseReview(s: DemoState, p: Extract<Pending, { kind: "purchase" }>): ReplyView {
+  const lang = s.lang;
+  const quote = p.heard ? `\n> "${p.heard}"\n` : "";
+  return {
+    lang,
+    kind: "buttons",
+    body:
+      `${pick(lang, "Make I write am like this?", "Shall I write it like this?")}\n${quote}\n*${pick(lang, "Stock wey you buy", "Stock bought")}*\n` +
+      `- ${p.item}, ${pick(lang, "from", "from")} ${p.supplier}: *${formatNaira(p.amount)}*\n- ${pick(lang, "You pay", "Paid")}: ${pick(lang, "cash, everything", "in full, cash")}\n\n` +
+      pick(lang, "This one na money wey comot from your shop.", "This is money out of your shop."),
+    footer: CONFIRMATION_PROMPT,
+    buttons: SAVE_BUTTONS,
+    pendingVersion: p.version,
+  };
+}
+
 function reviewView(s: DemoState, p: Pending): ReplyView {
+  if (p.kind === "purchase") return purchaseReview(s, p);
   const lang = s.lang;
   const c = find(s, p.customer);
   const isRev = p.kind === "reversal";
   const lines: string[] = [];
   if (p.sale) lines.push(`- ${pick(lang, "Credit sale", "Credit sale")}: *${formatNaira(p.sale)}*`);
   if (p.paid) lines.push(`- ${pick(lang, "Payment", "Paid now")}: *${formatNaira(p.paid)}*`);
+  if (p.kind === "entry" && p.due)
+    lines.push(`- ${pick(lang, "Remain go pay", "Balance due")}: *${p.due.label}* (${formatNaira(p.due.amount)})`);
   const heading = isRev
     ? pick(lang, "Make I cancel this entry?", "Reverse this entry?")
     : pick(lang, "Make I write am like this?", "Shall I write it like this?");
@@ -151,13 +208,78 @@ function reviewView(s: DemoState, p: Pending): ReplyView {
     kind: "buttons",
     body: `${heading}\n${quote}\n*${c.name}*\n${lines.join("\n")}\n\n${balanceLine}`,
     footer: CONFIRMATION_PROMPT,
-    buttons: [
-      { id: "save", title: "1 Save" },
-      { id: "edit", title: "2 Edit" },
-      { id: "cancel", title: "3 Cancel" },
-    ],
+    buttons: SAVE_BUTTONS,
     pendingVersion: p.version,
   };
+}
+
+/** Day totals, all calculated here from confirmed entries. */
+export function dayTotals(s: DemoState, d: Date) {
+  const today = day(d);
+  let credit = 0;
+  let collected = 0;
+  let entries = 0;
+  for (const c of s.customers)
+    for (const e of c.entries)
+      if (e.date === today) {
+        if (e.kind === "credit") credit += e.amount;
+        if (e.kind === "paid") collected += e.amount;
+        entries++;
+      }
+  const bought = s.purchases.filter((x) => x.date === today);
+  const stock = bought.reduce((a, x) => a + x.amount, 0);
+  return { credit, collected, stock, entries: entries + bought.length, owed: totalOwed(s) };
+}
+
+function summaryView(s: DemoState, now: Date): ReplyView {
+  const lang = s.lang;
+  const t = dayTotals(s, now);
+  const top = [...s.customers].filter((c) => c.balance > 0).sort((a, b) => b.balance - a.balance)[0];
+  return {
+    lang,
+    kind: "buttons",
+    body:
+      `*${pick(lang, "Your book today", "Your book today")}* · ${longDay(now)}\n\n` +
+      `- ${pick(lang, "Credit sales", "Credit sales")}: *${formatNaira(t.credit)}*\n` +
+      `- ${pick(lang, "Money wey you collect", "Money collected")}: *${formatNaira(t.collected)}*\n` +
+      `- ${pick(lang, "Stock wey you buy", "Stock bought")}: *${formatNaira(t.stock)}*\n\n` +
+      `${pick(lang, "People owe you", "People owe you")}: *${formatNaira(t.owed)}*\n` +
+      (top ? `${pick(lang, "Biggest", "Largest")}: ${top.name} · ${formatNaira(top.balance)}\n` : "") +
+      `\n_${pick(lang, `Na from the ${t.entries} entries wey you confirm today.`, `From the ${t.entries} entries you confirmed today.`)}_`,
+    buttons: [{ id: "debtors", title: pick(lang, "Who dey owe me", "Who owes me") }],
+  };
+}
+
+/** Kobo-initiated on the due date (a WhatsApp template in production). Nothing is sent to customers. */
+export function dueReminders(s: DemoState, now: Date): ReplyView[] {
+  const lang = s.lang;
+  return s.customers
+    .filter((c) => c.due && c.due.iso === iso(now) && c.balance > 0)
+    .map((c) => ({
+      lang,
+      kind: "buttons" as const,
+      body:
+        `*${pick(lang, "Reminder", "Reminder")}* · ${c.due!.label}\n\n` +
+        pick(
+          lang,
+          `${c.name} suppose pay *${formatNaira(c.due!.amount)}* today, for the ${c.due!.item} wey e carry on ${c.due!.soldOn}.\nE still owe you *${formatNaira(c.balance)}* for total.`,
+          `${c.name} is due to pay *${formatNaira(c.due!.amount)}* today, for the ${c.due!.item} taken on ${c.due!.soldOn}.\nTotal still owed: *${formatNaira(c.balance)}*.`,
+        ),
+      footer: pick(lang, "Kobo no dey message your customers by itself.", "Kobo never messages your customers itself."),
+      buttons: [
+        { id: `remind-draft:${c.id}`, title: pick(lang, "Draft message", "Draft a message") },
+        { id: `remind-paid:${c.id}`, title: pick(lang, "E don pay", "Already paid") },
+        { id: "remind-later", title: pick(lang, "Remind me later", "Remind me later") },
+      ],
+    }));
+}
+
+export function reminderDraft(s: DemoState, id: string): string {
+  const c = find(s, id);
+  const d = c.due!;
+  return s.lang === "pcm"
+    ? `Good morning ${c.name}, na ${s.shop}. Small reminder say the ${formatNaira(d.amount)} balance for the ${d.item} wey you carry on ${d.soldOn} dey due today. Thank you, God bless.`
+    : `Good morning ${c.name}, this is ${s.shop}. A small reminder that the ${formatNaira(d.amount)} balance for the ${d.item} you took on ${d.soldOn} is due today. Thank you.`;
 }
 
 function debtorsView(s: DemoState): ReplyView {
@@ -221,6 +343,7 @@ function historyView(s: DemoState, id: string): ReplyView {
 
 const AMOUNT_45 = /(?:\b45\s?k\b|45,?000|forty[\s-]?five\s+thousand)/i;
 const AMOUNT_20 = /(?:\b20\s?k\b|20,?000|twenty\s+thousand)/i;
+const AMOUNT_290 = /(?:\b290\s?k\b|290,?000|two\s+hundred\s+(?:and\s+)?ninety\s+thousand)/i;
 
 function newPending(s: DemoState, p: Omit<Extract<Pending, { kind: "entry" }>, "version" | "kind">): [DemoState, Pending] {
   const version = s.version + 1;
@@ -268,6 +391,22 @@ export function step(state: DemoState, input: DemoInput): DemoResult {
     // save: the only place the book changes
     const refCounter = s.refCounter + 1;
     const ref = `K-${refCounter.toString().padStart(4, "0")}`;
+    if (p.kind === "purchase") {
+      const st: DemoState = {
+        ...s,
+        pending: null,
+        refCounter,
+        lastSaved: null,
+        purchases: [{ date: day(now), item: p.item, supplier: p.supplier, amount: p.amount, ref }, ...s.purchases],
+      };
+      const spent = dayTotals(st, now).stock;
+      return done(st, [
+        text(
+          lang,
+          `${pick(lang, "*E don enter book.*", "*Saved to your book.*")}\n${pick(lang, `Stock wey you buy today: *${formatNaira(spent)}*.`, `Stock bought today: *${formatNaira(spent)}*.`)}\n\n_Ref ${ref} · ${stamp(now)}_`,
+        ),
+      ]);
+    }
     const customers = s.customers.map((c) => {
       if (c.id !== p.customer) return c;
       const dt = day(now);
@@ -285,7 +424,7 @@ export function step(state: DemoState, input: DemoInput): DemoResult {
         bal -= p.paid;
         entries.unshift({ date: dt, kind: "paid", amount: p.paid, owes: bal, ref });
       }
-      return { ...c, balance: bal, entries, lastPaid: p.paid ? dt : c.lastPaid };
+      return { ...c, balance: bal, entries, lastPaid: p.paid ? dt : c.lastPaid, due: p.due ?? c.due };
     });
     const st: DemoState = {
       ...s,
@@ -299,7 +438,10 @@ export function step(state: DemoState, input: DemoInput): DemoResult {
     const now2 =
       cust.balance === 0
         ? pick(lang, `${cust.name} don clear everything. E no owe you again.`, `${cust.name} has cleared the balance.`)
-        : pick(lang, `${cust.name} now owe you *${formatNaira(cust.balance)}*.`, `${cust.name} now owes you *${formatNaira(cust.balance)}*.`);
+        : pick(lang, `${cust.name} now owe you *${formatNaira(cust.balance)}*.`, `${cust.name} now owes you *${formatNaira(cust.balance)}*.`) +
+          (p.kind === "entry" && p.due
+            ? "\n" + pick(lang, `I go remind you ${p.due.label} morning.`, `I'll remind you on the morning of ${p.due.label}.`)
+            : "");
     return done(st, [
       {
         lang,
@@ -322,6 +464,22 @@ export function step(state: DemoState, input: DemoInput): DemoResult {
   }
 
   if (action === "debtors") return done(s, [debtorsView(s)]);
+  if (action === "summary") return done(s, [summaryView(s, now)]);
+  if (action?.startsWith("remind-draft:")) {
+    const id = action.slice(13);
+    if (!find(s, id)?.due) return done(s, [unknown(s)]);
+    return done(s, [
+      {
+        lang,
+        kind: "text",
+        body: `${pick(lang, `Copy am send to ${find(s, id).name}:`, `Copy this and send it to ${find(s, id).name}:`)}\n\n> ${reminderDraft(s, id)}`,
+        footer: pick(lang, "Na you go send am. Nothing go out without you.", "You send it. Nothing goes out without you."),
+      },
+    ]);
+  }
+  if (action?.startsWith("remind-paid:"))
+    return done(s, [text(lang, pick(lang, "Okay. How much e pay? Talk am or type am, I go write am.", "Okay. How much was paid? Say it or type it and I'll record it."))]);
+  if (action === "remind-later") return done(s, [text(lang, pick(lang, "No wahala. I go remind you again by 4pm.", "No problem. I'll remind you again at 4pm."))]);
   if (action?.startsWith("customer:")) return done(s, [historyView(s, action.slice(9))]);
 
   if (action === "amount-other")
@@ -348,6 +506,22 @@ export function step(state: DemoState, input: DemoInput): DemoResult {
   }
 
   if (/who\s+(dey\s+)?owe(s)?\s+me|debtors/i.test(t)) return done(s, [debtorsView(s)], true);
+
+  if (/how\s+(market|business)|summary|today\s+book/i.test(t)) return done(s, [summaryView(s, now)], true);
+
+  if (/\b(buy|bought)\b/i.test(t) && AMOUNT_290.test(t) && /rice/i.test(t)) {
+    const version = s.version + 1;
+    const supplier = /alhaji/i.test(t) ? "Alhaji" : pick(lang, "supplier", "supplier");
+    const pending: Pending = {
+      kind: "purchase",
+      version,
+      item: pick(lang, "5 bag rice", "5 bags of rice"),
+      supplier,
+      amount: naira(290000),
+      heard: input.voice ? t.trim() : undefined,
+    };
+    return done({ ...s, version, pending, awaiting: null }, [reviewView(s, pending)], true);
+  }
 
   if (/(mama\s+chidi).*(book|history)|(book|history).*(mama\s+chidi)/i.test(t)) return done(s, [historyView(s, "mama-chidi")], true);
 
@@ -380,11 +554,16 @@ export function step(state: DemoState, input: DemoInput): DemoResult {
   }
 
   if (/mama\s+chidi/i.test(t) && AMOUNT_45.test(t) && AMOUNT_20.test(t)) {
+    const item = pick(lang, "2 bag rice", "2 bags of rice");
+    // A named weekday becomes a date in code. A promise with no day stays unknown (no due date).
+    const friday = /\bfriday\b/i.test(t) ? nextWeekday(now, 5) : null;
     const [st, p] = newPending(s, {
       customer: "mama-chidi",
       sale: naira(45000),
       paid: naira(20000),
       heard: input.voice ? t.trim() : undefined,
+      item,
+      due: friday ? { iso: iso(friday), label: longDay(friday), amount: naira(45000) - naira(20000), item, soldOn: day(now) } : undefined,
     });
     return done(st, [reviewView(st, p)], true);
   }
@@ -400,13 +579,16 @@ export function step(state: DemoState, input: DemoInput): DemoResult {
 
 export const SAMPLE_VOICE = {
   label: "Play a sample voice note",
-  transcript: "Mama Chidi carry two bag rice, forty five thousand. She pay twenty thousand now.",
+  transcript: "Mama Chidi carry two bag rice, forty five thousand. She pay twenty thousand now, the remain she go pay Friday.",
 };
 
+export const STOCK_VOICE = "I buy five bag rice from Alhaji, two hundred and ninety thousand. I pay cash.";
+
 export const CHIPS = [
+  "I buy 5 bag rice from Alhaji, 290k",
+  "Mama Chidi carry rice 45k, she pay 20k, remain Friday",
   "Bayo pay me three eight",
-  "Mama Chidi carry rice 45k, she pay 20k",
   "Who dey owe me",
+  "How market today?",
   "Show Mama Chidi book",
-  "Iya Basira don pay everything",
 ];

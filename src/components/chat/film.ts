@@ -1,38 +1,66 @@
 /**
- * The hero film: a fixed script played through the scripted demo engine, so every message,
- * balance and total on screen is produced by the same tested code as the interactive demo.
- * Sample data only.
+ * The hero film: a trader's day in six chapters, played through the scripted demo engine so
+ * every message, balance and total on screen comes from the same tested code. Sample data only.
  */
-import { SAMPLE_VOICE, createDemo, formatNaira, naira, step, type DemoState } from "./demo-engine";
+import {
+  SAMPLE_VOICE,
+  STOCK_VOICE,
+  createDemo,
+  dayTotals,
+  dueReminders,
+  formatNaira,
+  naira,
+  reminderDraft,
+  step,
+  type DemoState,
+} from "./demo-engine";
 import type { Msg } from "./phone";
 
-export type Stage = 0 | 1 | 2 | 3 | 4;
+export const CHAPTERS = [
+  { t: "Stock bought", when: "7:52 AM" },
+  { t: "Sold on credit", when: "12:10 PM" },
+  { t: "Unclear amount", when: "3:40 PM" },
+  { t: "Who owes me", when: "6:05 PM" },
+  { t: "Day’s summary", when: "8:00 PM" },
+  { t: "Reminder", when: "Friday" },
+] as const;
+
 export type Caption =
   | { kind: "idle" }
   | { kind: "heard"; text: string; marks: { text: string; doubt?: boolean }[] }
-  | { kind: "proposal"; name: string; lines: { label: string; value: string; tone?: "owed" | "paid" }[] }
+  | { kind: "proposal"; title: string; lines: { label: string; value: string; tone?: "owed" | "paid" | "out" }[] }
   | { kind: "ask"; heard: string; options: string[] }
   | { kind: "tap"; label: string }
-  | { kind: "saved"; name: string; owes: string; ref: string };
+  | { kind: "saved"; line: string; tone?: "owed" | "out"; amount: string; note?: string }
+  | { kind: "debtors"; rows: { name: string; amount: string }[]; total: string }
+  | { kind: "summary"; figures: { label: string; value: string; tone?: "owed" | "paid" | "out" }[] }
+  | { kind: "reminder"; name: string; amount: string; date: string }
+  | { kind: "draft"; to: string; text: string };
+
 export interface BookRow {
   id: string;
   time: string;
   name: string;
-  entry: "credit" | "paid" | "fix";
+  entry: "credit" | "paid" | "stock" | "fix";
   amount: string;
-  owes: string;
+  owes?: string;
 }
 export interface Frame {
+  chapter: number;
   msgs: Msg[];
   typing: boolean;
   pressed?: string;
   playing?: string;
-  stage: Stage;
   caption: Caption;
   book: BookRow[];
-  owed: string;
+  stats: { collected: string; stock: string; owed: string };
+  reminders: { date: string; name: string; amount: string }[];
   dur: number;
 }
+
+const DAY = (h: number, m: number) => new Date(2026, 10, 2, h, m); // Monday 2 Nov 2026
+const FRI = (h: number, m: number) => new Date(2026, 10, 6, h, m);
+const clock = (d: Date) => `${((d.getHours() + 11) % 12) + 1}:${String(d.getMinutes()).padStart(2, "0")} ${d.getHours() < 12 ? "AM" : "PM"}`;
 
 export function buildFilm(): Frame[] {
   let st: DemoState = createDemo("pcm");
@@ -40,91 +68,160 @@ export function buildFilm(): Frame[] {
   const book: BookRow[] = [];
   const frames: Frame[] = [];
   let n = 0;
-  const t = (m: number) => `4:${String(12 + m).padStart(2, "0")} PM`;
-  const owed = () => formatNaira(st.customers.reduce((a, c) => a + c.balance, 0));
-  const frame = (f: Omit<Frame, "msgs" | "book" | "owed" | "typing"> & { typing?: boolean }) =>
-    frames.push({ msgs: [...msgs], book: [...book], owed: owed(), typing: false, ...f });
-  const settle = () => {
+  let chapter = 0;
+
+  const stats = () => {
+    const t = dayTotals(st, DAY(12, 0));
+    return { collected: formatNaira(t.collected), stock: formatNaira(t.stock), owed: formatNaira(t.owed) };
+  };
+  const reminders = () =>
+    st.customers.filter((c) => c.due && c.balance > 0).map((c) => ({ date: c.due!.label, name: c.name, amount: formatNaira(c.due!.amount) }));
+  const frame = (f: { caption: Caption; dur: number; typing?: boolean; pressed?: string; playing?: string }) =>
+    frames.push({ chapter, msgs: [...msgs], book: [...book], stats: stats(), reminders: reminders(), typing: false, ...f });
+  const settle = () =>
     msgs.forEach((m, i) => {
       if (m.view && (m.view.buttons || m.view.list) && !m.settled) msgs[i] = { ...m, settled: true };
     });
-  };
-  const you = (text: string, time: string, voice = false) => {
+  const you = (text: string, at: Date, voice = false) => {
     settle();
-    const m: Msg = { id: `f${n++}`, from: "you", text, voice, time };
+    const m: Msg = { id: `f${n++}`, from: "you", text, voice, time: clock(at) };
     msgs.push(m);
     return m;
   };
-  const run = (input: Parameters<typeof step>[1], minute: number) => {
-    const r = step(st, { ...input, now: new Date(2026, 10, 1, 16, 12 + minute) });
+  const run = (input: Parameters<typeof step>[1], at: Date) => {
+    const r = step(st, { ...input, now: at });
     st = r.state;
     return r;
   };
-  const kobo = (r: ReturnType<typeof step>, time: string) =>
-    r.replies.forEach((view) => msgs.push({ id: `f${n++}`, from: "kobo", view, time }));
-  const proposal = (): Caption => {
-    const p = st.pending!;
-    const c = st.customers.find((x) => x.id === p.customer)!;
-    const lines: Extract<Caption, { kind: "proposal" }>["lines"] = [];
-    if (p.sale) lines.push({ label: "Credit sale", value: formatNaira(p.sale), tone: "owed" });
-    if (p.paid) lines.push({ label: "Paid", value: formatNaira(p.paid), tone: "paid" });
-    lines.push({ label: "Will owe", value: formatNaira(c.balance + p.sale - p.paid) });
-    return { kind: "proposal", name: c.name, lines };
-  };
-  const write = (customerId: string, count: number, time: string) => {
-    const c = st.customers.find((x) => x.id === customerId)!;
-    c.entries
-      .slice(0, count)
-      .reverse()
-      .forEach((e) => book.push({ id: `r${book.length}`, time, name: c.name, entry: e.kind, amount: formatNaira(e.amount), owes: formatNaira(e.owes) }));
-  };
-  const saved = (customerId: string): Caption => {
-    const c = st.customers.find((x) => x.id === customerId)!;
-    return { kind: "saved", name: c.name, owes: formatNaira(c.balance), ref: `K-${String(st.refCounter).padStart(4, "0")}` };
+  const kobo = (views: ReturnType<typeof step>["replies"], at: Date) => views.forEach((view) => msgs.push({ id: `f${n++}`, from: "kobo", view, time: clock(at) }));
+  const customer = (id: string) => st.customers.find((c) => c.id === id)!;
+  const tapSave = (at: Date) => {
+    frame({ caption: { kind: "tap", label: "1 Save" }, pressed: "save", dur: 900 });
+    you("1 Save", at);
+    const r = run({ action: "save" }, at);
+    frame({ caption: { kind: "tap", label: "1 Save" }, typing: true, dur: 700 });
+    kobo(r.replies, at);
+    return r;
   };
 
-  frame({ stage: 0, caption: { kind: "idle" }, dur: 1200 });
+  frame({ caption: { kind: "idle" }, dur: 1400 });
 
-  // Scene A: a sale on credit with a part payment.
-  const a = SAMPLE_VOICE.transcript;
-  const va = you(a, t(0), true);
-  const heardA: Caption = { kind: "heard", text: a, marks: [{ text: "Mama Chidi" }, { text: "two bag rice" }, { text: "forty five thousand" }, { text: "twenty thousand" }] };
-  frame({ stage: 1, caption: heardA, playing: va.id, dur: 3400 });
-  frame({ stage: 1, caption: heardA, typing: true, dur: 900 });
-  kobo(run({ text: a, voice: true }, 0), t(0));
-  frame({ stage: 2, caption: proposal(), dur: 3600 });
-  frame({ stage: 3, caption: { kind: "tap", label: "1 Save" }, pressed: "save", dur: 900 });
-  you("1 Save", t(1));
-  const ra = run({ action: "save" }, 1);
-  frame({ stage: 3, caption: { kind: "tap", label: "1 Save" }, typing: true, dur: 700 });
-  kobo(ra, t(1));
-  write("mama-chidi", 2, t(1));
-  frame({ stage: 4, caption: saved("mama-chidi"), dur: 3600 });
+  // 1. Stock bought: money out.
+  let at = DAY(7, 52);
+  const v1 = you(STOCK_VOICE, at, true);
+  const heard1: Caption = { kind: "heard", text: STOCK_VOICE, marks: [{ text: "five bag rice" }, { text: "Alhaji" }, { text: "two hundred and ninety thousand" }, { text: "cash" }] };
+  frame({ caption: heard1, playing: v1.id, dur: 3400 });
+  frame({ caption: heard1, typing: true, dur: 800 });
+  kobo(run({ text: STOCK_VOICE, voice: true }, at).replies, at);
+  frame({ caption: { kind: "proposal", title: "Stock bought", lines: [{ label: "5 bag rice · Alhaji", value: formatNaira(naira(290000)), tone: "out" }, { label: "Paid", value: "Cash, in full" }] }, dur: 3000 });
+  at = DAY(7, 53);
+  tapSave(at);
+  book.push({ id: `r${book.length}`, time: clock(at), name: "5 bag rice · Alhaji", entry: "stock", amount: formatNaira(naira(290000)) });
+  frame({ caption: { kind: "saved", line: "Stock bought today", amount: stats().stock, tone: "out" }, dur: 2800 });
 
-  // Scene B: an ambiguous amount. Kobo asks instead of guessing.
+  // 2. Sold on credit with a promised date.
+  chapter = 1;
+  at = DAY(12, 10);
+  const v2 = you(SAMPLE_VOICE.transcript, at, true);
+  const heard2: Caption = { kind: "heard", text: SAMPLE_VOICE.transcript, marks: [{ text: "Mama Chidi" }, { text: "two bag rice" }, { text: "forty five thousand" }, { text: "twenty thousand" }, { text: "Friday" }] };
+  frame({ caption: heard2, playing: v2.id, dur: 3800 });
+  frame({ caption: heard2, typing: true, dur: 800 });
+  kobo(run({ text: SAMPLE_VOICE.transcript, voice: true }, at).replies, at);
+  const p2 = st.pending as Extract<DemoState["pending"], { kind: "entry" }>;
+  frame({
+    caption: {
+      kind: "proposal",
+      title: "Mama Chidi",
+      lines: [
+        { label: "Credit sale", value: formatNaira(p2.sale), tone: "owed" },
+        { label: "Paid now", value: formatNaira(p2.paid), tone: "paid" },
+        { label: `Due ${p2.due!.label}`, value: formatNaira(p2.due!.amount) },
+      ],
+    },
+    dur: 3600,
+  });
+  at = DAY(12, 11);
+  tapSave(at);
+  customer("mama-chidi")
+    .entries.slice(0, 2)
+    .reverse()
+    .forEach((e) => book.push({ id: `r${book.length}`, time: clock(at), name: "Mama Chidi", entry: e.kind, amount: formatNaira(e.amount), owes: formatNaira(e.owes) }));
+  frame({ caption: { kind: "saved", line: "Mama Chidi now owes", amount: formatNaira(customer("mama-chidi").balance), tone: "owed", note: `Reminder set for ${p2.due!.label}` }, dur: 3200 });
+
+  // 3. Unclear amount: Kobo asks instead of guessing.
+  chapter = 2;
+  at = DAY(15, 40);
   const b = "Bayo pay me three eight";
-  const vb = you(b, t(2), true);
-  const heardB: Caption = { kind: "heard", text: b, marks: [{ text: "Bayo" }, { text: "three eight", doubt: true }] };
-  frame({ stage: 1, caption: heardB, playing: vb.id, dur: 2800 });
-  frame({ stage: 1, caption: heardB, typing: true, dur: 900 });
-  const askR = run({ text: b, voice: true }, 2);
-  kobo(askR, t(2));
-  const options = askR.replies[0].buttons!.filter((x) => x.id.startsWith("amount:")).map((x) => x.title);
-  frame({ stage: 2, caption: { kind: "ask", heard: "three eight", options }, dur: 4200 });
+  const v3 = you(b, at, true);
+  const heard3: Caption = { kind: "heard", text: b, marks: [{ text: "Bayo" }, { text: "three eight", doubt: true }] };
+  frame({ caption: heard3, playing: v3.id, dur: 2600 });
+  frame({ caption: heard3, typing: true, dur: 800 });
+  const ask = run({ text: b, voice: true }, at);
+  kobo(ask.replies, at);
+  const options = ask.replies[0].buttons!.filter((x) => x.id.startsWith("amount:")).map((x) => x.title);
+  frame({ caption: { kind: "ask", heard: "three eight", options }, dur: 4000 });
   const pick = `amount:${naira(3800)}`;
-  frame({ stage: 3, caption: { kind: "tap", label: formatNaira(naira(3800)) }, pressed: pick, dur: 900 });
-  you(formatNaira(naira(3800)), t(3));
-  const rb = run({ action: pick }, 3);
-  frame({ stage: 3, caption: { kind: "tap", label: formatNaira(naira(3800)) }, typing: true, dur: 700 });
-  kobo(rb, t(3));
-  frame({ stage: 2, caption: proposal(), dur: 3000 });
-  frame({ stage: 3, caption: { kind: "tap", label: "1 Save" }, pressed: "save", dur: 900 });
-  you("1 Save", t(3));
-  const rs = run({ action: "save" }, 3);
-  frame({ stage: 3, caption: { kind: "tap", label: "1 Save" }, typing: true, dur: 700 });
-  kobo(rs, t(3));
-  write("bayo", 1, t(3));
-  frame({ stage: 4, caption: saved("bayo"), dur: 6000 });
+  frame({ caption: { kind: "tap", label: formatNaira(naira(3800)) }, pressed: pick, dur: 900 });
+  you(formatNaira(naira(3800)), at);
+  const r3 = run({ action: pick }, at);
+  frame({ caption: { kind: "tap", label: formatNaira(naira(3800)) }, typing: true, dur: 700 });
+  kobo(r3.replies, at);
+  frame({ caption: { kind: "proposal", title: "Bayo", lines: [{ label: "Paid", value: formatNaira(naira(3800)), tone: "paid" }, { label: "Will owe", value: formatNaira(customer("bayo").balance - naira(3800)) }] }, dur: 2400 });
+  at = DAY(15, 41);
+  tapSave(at);
+  book.push({ id: `r${book.length}`, time: clock(at), name: "Bayo", entry: "paid", amount: formatNaira(naira(3800)), owes: formatNaira(customer("bayo").balance) });
+  frame({ caption: { kind: "saved", line: "Bayo now owes", amount: formatNaira(customer("bayo").balance), tone: "owed" }, dur: 2600 });
+
+  // 4. Who owes me.
+  chapter = 3;
+  at = DAY(18, 5);
+  settle();
+  you("Who dey owe me", at);
+  frame({ caption: { kind: "tap", label: "Who dey owe me" }, typing: true, dur: 1100 });
+  kobo(run({ text: "Who dey owe me" }, at).replies, at);
+  const debtors = [...st.customers].filter((c) => c.balance > 0).sort((x, y) => y.balance - x.balance);
+  frame({ caption: { kind: "debtors", rows: debtors.slice(0, 4).map((c) => ({ name: c.name, amount: formatNaira(c.balance) })), total: formatNaira(dayTotals(st, at).owed) }, dur: 4200 });
+
+  // 5. Day's summary, sent by Kobo in the evening.
+  chapter = 4;
+  at = DAY(20, 0);
+  settle();
+  frame({ caption: { kind: "idle" }, typing: true, dur: 900 });
+  kobo(run({ action: "summary" }, at).replies, at);
+  const t = dayTotals(st, at);
+  frame({
+    caption: {
+      kind: "summary",
+      figures: [
+        { label: "Credit sales", value: formatNaira(t.credit), tone: "owed" },
+        { label: "Collected", value: formatNaira(t.collected), tone: "paid" },
+        { label: "Stock bought", value: formatNaira(t.stock), tone: "out" },
+        { label: "People owe you", value: formatNaira(t.owed) },
+      ],
+    },
+    dur: 4600,
+  });
+
+  // 6. Friday morning: Kobo reminds the trader and drafts a message for them to send.
+  chapter = 5;
+  at = FRI(8, 0);
+  settle();
+  msgs.push({ id: `f${n++}`, from: "date", text: "Friday" });
+  frame({ caption: { kind: "idle" }, typing: true, dur: 1000 });
+  kobo(dueReminders(st, at), at);
+  const due = customer("mama-chidi").due!;
+  frame({ caption: { kind: "reminder", name: "Mama Chidi", amount: formatNaira(due.amount), date: due.label }, dur: 3600 });
+  frame({ caption: { kind: "tap", label: "Draft message" }, pressed: "remind-draft:mama-chidi", dur: 900 });
+  you("Draft message", at);
+  const r6 = run({ action: "remind-draft:mama-chidi" }, at);
+  frame({ caption: { kind: "tap", label: "Draft message" }, typing: true, dur: 800 });
+  kobo(r6.replies, at);
+  frame({ caption: { kind: "draft", to: "Mama Chidi", text: reminderDraft(st, "mama-chidi") }, dur: 6500 });
 
   return frames;
+}
+
+/** Index of the first frame of each chapter, for the chapter buttons. */
+export function chapterStarts(frames: Frame[]): number[] {
+  return CHAPTERS.map((_, c) => frames.findIndex((f) => f.chapter === c));
 }
