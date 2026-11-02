@@ -25,8 +25,8 @@ const opening = (lang: Lang): Msg => ({
     kind: "text",
     body:
       lang === "pcm"
-        ? "I be your book. Tell me who buy, who pay, or ask *who dey owe me*."
-        : "I keep your book. Tell me who bought, who paid, or ask *who owes me*.",
+        ? "You don come! I be Kobo, your book.\nTell me wetin you buy or sell, who pay you, or ask *who dey owe me*."
+        : "Welcome. I'm Kobo, your book.\nTell me what you bought or sold, who paid you, or ask *who owes me*.",
   },
 });
 
@@ -182,6 +182,12 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
             ) : (
               <Incoming key={m.id} view={m.view!} time={m.time} live={!m.settled && m.id === lastKobo} onTap={tap} onList={() => setSheet(m.view!)} />
             ),
+          )}
+          {messages.length === 1 && (
+            <span className="msg-in mx-auto mt-2 shrink-0 rounded-full bg-white/70 px-3 py-1 text-center text-[12.5px]" style={{ color: WA.meta }}>
+              <span className="lg:hidden">Tap a message above, or type your own</span>
+              <span className="hidden lg:inline">Tap a message on the left, or type your own</span>
+            </span>
           )}
         </PhoneShell>
       </div>
