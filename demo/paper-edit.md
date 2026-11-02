@@ -12,16 +12,17 @@ Every unwritten sale is a small floating card (item, name, amount) drifting arou
 
 | # | time | picture | source | move |
 |---|---|---|---|---|
-| M1a | 0:00 | black, shop ambience, then a wide Nigerian market in golden light | Pexels clip 3 (keke, grain sacks, umbrellas) | slow push |
-| M1b | 0:06 | "my mum runs a cosmetics shop": the footage softens; a counter outline drawn in thin graphite lines, a shopkeeper silhouette | motion | match dissolve from the footage to line art |
-| M1c | 0:12 | "picks up a cream… pay later": the first card floats off the counter (*Body cream · Ada · ₦4,500?*) | motion | card drifts up |
-| M1d | 0:20 | "Later, it's five people": cards multiply; labels swap, amounts blur, a "½?" hangs between two names | motion | slow orbit, focus breaks |
-| M1e | 0:30 | "every provision store, every POS stand, every market stall": quick cuts of market footage | Pexels: Lagos market women trading; Côte d'Ivoire clip as texture only | cuts every ~1.5s on the beat of the words |
+| M1a | 0:00 | black, market ambience, then a wide Nigerian market in golden light | Pexels clip 3 (keke, grain sacks, umbrellas) | slow push |
+| M1b | 0:05 | "This is Nkechi": footage softens into thin graphite line art of a provision stall (shelves of tins, a pack of biscuits, oil bottles); "Nkechi Provisions" lettered on the board | motion | match dissolve from footage to line art |
+| M1c | 0:10 | the biscuit sale: a card floats off the counter (*Cabin biscuit · ₦1,500 · tomorrow?*) | motion | card drifts up |
+| M1d | 0:17 | the oil: a second card (*Groundnut oil · Bayo · ₦3,800 · Friday?*) | motion | card drifts up |
+| M1e | 0:23 | "By evening, it's ten people": cards multiply; labels swap (the oil slides onto the wrong name), a lone "₦2,000 · ?" hangs with no name | motion | slow orbit, focus breaks |
+| M1f | 0:33 | "Every market in Nigeria…": quick cuts of real market footage | Pexels: Lagos market women trading; Côte d'Ivoire clip as texture only | cuts every ~1.5s |
 | M2 | 0:40 | the drifting cards collapse into one point, which becomes the [k] tile; the stub drops into the notch; tagline types in | logo SVG (#tile #stub #k #wordmark) | percussion hit on the stub landing |
 | M3a | 0:47 | WhatsApp in the phone, tilted in 3D on graphite; a voice-note bubble with a "0:05" timer | phone component | push-in |
 | M3b | 0:55 | transcript under the voice note; who/what/how much/when get lavender marks one by one; small labels "Muse Voice", "Muse Spark" | wa-text component | marks in sequence |
 | M3c | 1:05 | the review card pulls out of the phone, floats forward; "1 Save" tapped; the row drops into the book panel | review card, book panel | card pull-out, then the landing's signature "lands in the book" motion |
-| M4 | 1:15 | "three eight" as a voice bubble; silence; the ₦3,800 *or* ₦38,000? poster fills the frame, the two numbers split apart; Kobo's question with the two buttons; one tapped | poster + phone | hard cut to the poster in the silence; music returns on "It asks." |
+| M4 | 1:15 | Bayo's floating card from M1 drifts in; "three eight" as a voice bubble; silence; the ₦3,800 *or* ₦38,000? poster fills the frame, the two numbers split apart; Kobo's question with the two buttons; one tapped | poster + phone | hard cut to the poster in the silence; music returns on "It asks." |
 | M4b | 1:30 | "plain code… nothing is ever erased": a correction appears as a new line under the original, the original stays | book panel | quiet hold |
 | M5 | 1:40 | the film: phone left, book right, chapter bar (morning → noon → evening → night); the summary card arrives at the end | landing film, later re-captured from the real backend | chapter labels as scene titles; zooms on 4K screenshots |
 | M6a | 2:10 | Friday 8:00 AM reminder; "Draft message" tapped; the drafted text; footer "Na you go send am" | phone | push-in on the drafted text |
@@ -38,4 +39,5 @@ Every unwritten sale is a small floating card (item, name, amount) drifting arou
 - One easing family (ease-in-out). Camera moves 400–700ms. Text in about 300ms, out about 200ms.
 - Captions: one line, fixed position, word by word, at most one lavender word per line.
 - No invented stats, users or testimonials. Every amount on screen is labelled sample data or comes from a real capture.
-- "My mum" is the inspiration only. Never imply she uses Kobo.
+- Nkechi, Bayo and every amount are sample characters and data. Never present them as real people or real usage.
+- The ₦3,800 oil in M1 is deliberately the same "three eight" in M4: the viewer already knows the real amount, so the question lands.

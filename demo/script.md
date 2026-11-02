@@ -3,23 +3,27 @@
 Voice: Emmanuel's ElevenLabs clone ("My Voice"). Generate one clip per scene, each with its own tone (see TONE), and only after this script is approved.
 Target: about 2:30. Hard limit: 3:00.
 Captions come from this file word for word. Pidgin lines get a small English subtitle.
-Spine: the problem is "later" (selling and writing can't happen at the same moment). The answer: **You sell. Kobo remembers.**
+Spine: Nkechi is a fictional provision seller in a Nigerian market (sample character, never presented as a real person). The problem is "later" (selling and writing can't happen at the same moment). The answer: **You sell. Kobo remembers.**
 
 ---
 
-## M1 · later (0:00 to 0:40)
-TONE: close, quiet, personal, like telling a friend at night. Slower pace.
-MUSIC: soft keys or kalimba under shop ambience. No drums.
+## M1 · later (0:00 to 0:42)
+TONE: close, quiet, observant, like describing someone you've watched for years. Slower pace.
+MUSIC: soft keys or kalimba under market ambience. No drums.
 
-My mum runs a cosmetics shop.
+This is Nkechi. She sells provisions in the market.
 
-When it's busy, someone picks up a cream, says they'll pay later, and she lets them go. She's still serving the next person, so she tells herself: I'll write it down later.
+A customer picks up a pack of Cabin biscuits, one thousand five hundred. *"I go pay you tomorrow."* Nkechi nods. She's already serving the next person.
 
-Later, it's five people. Who took the cream? Did she pay half, or was that someone else?
+Bayo takes a bottle of groundnut oil, three thousand eight hundred. *"Make I bring the money Friday."*
 
-It's all in her head. And her head is running the whole shop.
+She'll write it down later.
 
-It's the same in every provision store, every POS stand, every market stall. Not because people are careless. Selling and writing just can't happen at the same time.
+By evening, it's ten people. Who took the oil? Was the biscuit paid for? Two thousand from who?
+
+It's all in her head. And her head is running the whole stall.
+
+Every market in Nigeria is full of women like Nkechi. Not careless. Busy. Selling and writing just can't happen at the same time.
 
 ## M2 · reveal (0:40 to 0:47)
 TONE: a quiet smile, then confident.
@@ -47,7 +51,7 @@ MUSIC: cuts to **silence** on "three eight". Returns on "It asks."
 
 Unless Kobo isn't sure.
 
-*"Bayo pay me three eight."*
+Friday, Bayo comes back with the oil money. Nkechi records: *"Bayo pay me three eight."*
 
 Three thousand eight hundred? Or thirty-eight thousand?
 
@@ -61,7 +65,7 @@ MUSIC: the full groove (afro / amapiano instrumental).
 
 Here's a whole day.
 
-Morning: stock from the supplier. Money out.
+Morning: five cartons of biscuits from the distributor. Money out.
 
 Noon: a sale on credit, half paid, balance Friday. Kobo turns "Friday" into a date.
 
@@ -73,7 +77,7 @@ And at night, the whole day on one page.
 TONE: warm, back to M1's closeness.
 MUSIC: M1's soft theme returns with a light groove under it.
 
-On Friday morning, Kobo reminds her who's due, and drafts a polite message she sends from her own phone. Kobo never talks to her customers. She does.
+On Friday morning, Kobo reminds Nkechi who's due, and drafts a polite message she sends from her own phone. Kobo never talks to her customers. She does.
 
 No more "later".
 
