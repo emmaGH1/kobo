@@ -27,5 +27,12 @@ At the owner's request the film now covers six chapters: stock bought, credit sa
 ## Blockers / unresolved decisions
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 
+## Summary card and owner decisions (2026-11-02)
+The owner authorized pushing `design` and a summary image card in `src/app/og/`. The card renderer uses next/og, pre-calculated integer-kobo inputs, and bundled DejaVu Sans (with license); `GET /og` is a public, explicitly labelled **sample only**, with no query-parameter data. Rendering uses no ledger or WhatsApp integration. Real cards need owner-authenticated data retrieval, core-calculated totals, safe delivery, and layout checks for long names/amounts before production. Do not expose trader data through a public URL. Visual inspection of the 1080×1350 PNG succeeded; typecheck, lint, 23 tests and build passed (metadataBase warning remains).
+
+The owner says the film may remain scripted and labelled as a film, including purchases, due dates and reminders because core is adding them. Your turn must use the real backend when its API lands; then delete the scripted engine without breaking the film (film currently depends on it, so decouple first). No claim that core's work has shipped. Sample voice recording and Pidgin review remain open.
+
+Shared paths changed against `main`: `src/app/page.tsx`, `src/app/layout.tsx`, `src/app/globals.css`, `src/app/apple-icon.png`, `src/app/favicon.ico`, `src/app/icon.png`, `src/app/opengraph-image.png`, `src/app/fonts/`, plus `HANDOVER.md` and `docs/CURRENT_STATE.md`. New route `src/app/og/` requires route-placement coordination; `docs/DESIGN.md` and `docs/design/` are in the docs lane. No package or lockfile change.
+
 ## Next single action
-Logo C picked and exported (docs/design/logo/). Next: core builds /api/demo/* and ReplyView, then swap the scripted engine for the real client; record the sample voice note; build the summary card. On approval: core builds /api/demo/* and ReplyView, then swap the scripted engine for the real client.
+Coordinate core's API contract and arrival, then integrate Your turn and preserve a decoupled scripted film. Coordinate real summary data and private delivery separately.

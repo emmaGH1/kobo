@@ -18,7 +18,7 @@ No features implemented. No API calls were made and no voice harness files chang
 Not started. Owns src/core/, src/server/, src/app/api/, src/app/dev/, db/. Shared contract types exist; handlers, schema, arithmetic, authentication and integrations do not.
 
 ## Design lane
-Design direction approved by the owner on 2026-11-01. Logo B (coin o) picked and exported to docs/design/logo/. Design probe built (landing hero with scripted chat, how it works, safety example, footer); awaiting owner review. Owns src/components/ and src/app/(app)/. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
+Landing v3 design preview and selected logo C are on `design`; the film and interactive chat currently use a scripted engine. Owner directed: retain a clearly labelled scripted film (including purchases, due dates and reminders), but connect Your turn to core's real API when available and then remove its scripted engine without breaking the film. The owner says core is adding these features; verify on integration. `src/app/og/` now renders a 1080×1350 sample summary PNG with next/og, including stock; `/og` serves sample data only, not private ledger data. Real-data aggregation, authorization and WhatsApp delivery remain unimplemented. The card currently uses bundled DejaVu Sans as an image-rendering font, not the landing Geist fonts. See HANDOVER.md for coordination.
 
 ## Docs lane
 Initial setup documents exist. Official rubric/submission requirements remain unverified.
