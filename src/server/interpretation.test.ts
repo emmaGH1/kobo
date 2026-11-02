@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { LedgerStore } from './ledger-store';
 import { Service } from './service';
 import type { ModelProvider } from './model-provider';
@@ -26,6 +26,12 @@ it('blocks fabricated quotations and ambiguous amounts', async () => {
     const {store,service}=setup([e]);
     try {const r=await service.handleMessage({...ctx,text}); expect(r.pending!.flags.length).toBeGreaterThan(0); expect(r.pending!.clarifications?.[0].question).toBe(r.pending!.flags[0]); await expect(service.confirm({...ctx,pendingId:r.pending!.id})).rejects.toThrow(); expect(store.events('a')).toHaveLength(0);} finally {store.close();}
   }
+});
+it('resolves tomorrow against the Lagos calendar date', async () => {
+  const clock=vi.spyOn(Date,'now').mockReturnValue(Date.parse('2030-01-01T23:30:00Z'));
+  const text='Bola bought on credit for 12k due tomorrow';
+  const {store,service}=setup([entry({evidence_text:text,due_date_text:'tomorrow'})]);
+  try { const r=await service.handleMessage({...ctx,text}); expect(r.pending?.flags).toEqual([]); await service.confirm({...ctx,pendingId:r.pending!.id}); expect(store.events('a')[0].dueDate).toBe('2030-01-03'); } finally {store.close();clock.mockRestore();}
 });
 it('records separately quoted sale and payment together', async () => {
   const {store,service}=setup([entry(),entry({kind:'payment',amount_text:'2k',evidence_text:'Bola paid 2k'})]);

@@ -15,6 +15,14 @@ export const tools: ToolRequest['tools'] = [
   { type: 'function', name: 'get_balance', description: 'Get a customer balance.', parameters: { type: 'object', properties: { customer_name: { type: 'string' } }, required: ['customer_name'], additionalProperties: false } },
   { type: 'function', name: 'daily_summary', description: 'Get today’s sales and collections.', parameters: empty },
 ];
+function resolveDueDate(text: string): string | undefined {
+  if (validDueDate(text)) return text;
+  const relative = text.toLocaleLowerCase();
+  if (relative !== 'today' && relative !== 'tomorrow') return;
+  const lagos = new Date(Date.now() + 3600000);
+  const day = Date.UTC(lagos.getUTCFullYear(), lagos.getUTCMonth(), lagos.getUTCDate() + (relative === 'tomorrow' ? 1 : 0));
+  return new Date(day).toISOString().slice(0, 10);
+}
 const format = (n: number) => `${n < 0 ? '-' : ''}₦${Math.floor(Math.abs(n) / 100)}.${String(Math.abs(n) % 100).padStart(2, '0')}`;
 function review(p: Pending, store: LedgerStore): MessageReply {
   const customers = store.customers(p.ownerId);
@@ -82,8 +90,8 @@ export class Service implements BookkeepingService {
         if (amount.kind === 'invalid') flags.push('Please clarify the stated amount.');
         let dueDate: string | undefined;
         if (f.due_date_text) {
-          if (f.kind === 'sale' && quoteOK && sourceHasSpan(f.evidence_text, f.due_date_text) && validDueDate(f.due_date_text)) dueDate = f.due_date_text;
-          else flags.push('Please clarify the due date as YYYY-MM-DD.');
+          if (f.kind === 'sale' && quoteOK && sourceHasSpan(f.evidence_text, f.due_date_text)) dueDate = resolveDueDate(f.due_date_text);
+          if (!dueDate) flags.push('Please clarify the due date as YYYY-MM-DD, today or tomorrow.');
         }
         const customer = f.customer_name && quoteOK && sourceHasSpan(f.evidence_text, f.customer_name) ? this.store.findCustomer(this.ownerId, f.customer_name) : undefined;
         const main = { kind: f.kind, ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(dueDate ? { dueDate } : {}) };
