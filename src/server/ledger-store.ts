@@ -13,6 +13,8 @@ export interface EntryDraft {
   customerName?: string;
   calculatedFromBalance?: boolean;
   amountKobo?: number;
+  /** Deterministic candidates for this entry only; absent for missing amounts. */
+  amountQuestion?: { source?: string; candidatesKobo: number[]; flag: string };
   reversalOf?: string;
   dueDate?: string;
   /** Unresolved source date, tracked per entry until answered. */

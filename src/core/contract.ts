@@ -38,7 +38,13 @@ export interface EditPendingInput extends PendingActionInput {
   audioPath?: string;
 }
 
+/** An interactive answer must identify the exact review that supplied its options. */
+export interface ClarificationInput extends PendingActionInput {
+  answer: string;
+}
+
 export interface BookkeepingService {
+  resolveClarification(input: ClarificationInput): Promise<MessageReply>;
   /** Also routes plain-text choices against the single current owned pending ID. */
   handleMessage(input: MessageInput): Promise<MessageReply>;
   /** Explicit save only; fail closed on flags, stale IDs, expiry or wrong owner. */

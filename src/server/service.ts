@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { balances, dailySummary, debtors } from '../core/ledger';
 import { parseNaira, sourceHasSpan } from '../core/naira';
-import { CONFIRMATION_PROMPT, type BookkeepingService, type MessageReply, type PendingActionInput, type EditPendingInput, type MessageInput } from '../core/contract';
+import { CONFIRMATION_PROMPT, type BookkeepingService, type MessageReply, type PendingActionInput, type EditPendingInput, type MessageInput, type ClarificationInput } from '../core/contract';
 import { LedgerStore, validDueDate, type Pending, type PendingDraft } from './ledger-store';
 import { type ModelProvider, type ToolRequest } from './model-provider';
 import { parseToolResponse, statedAmountKobo } from './tool-calls';
@@ -40,6 +40,8 @@ function closeName(a: string, b: string): boolean {
 }
 const format = (n: number) => `${n < 0 ? '-' : ''}₦${Math.floor(Math.abs(n) / 100)}.${String(Math.abs(n) % 100).padStart(2, '0')}`;
 function amountOptions(p: Pending): string[] {
+  const entry = p.entries.find(e => !e.amountKobo);
+  if (entry?.amountQuestion) return entry.amountQuestion.candidatesKobo.length === 2 ? entry.amountQuestion.candidatesKobo.map(format) : [];
   if (p.entries.filter(e => !e.amountKobo).length !== 1) return [];
   const flag = p.flags.find(f => /^Please clarify .*: ₦/.test(f));
   return flag ? [...flag.matchAll(/₦[\d]+\.\d{2}/g)].map(m => m[0]) : [];
@@ -51,8 +53,10 @@ function review(p: Pending, store: LedgerStore): MessageReply {
   const candidates = candidateEntry?.customerCandidates?.map(id => customers.find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c) ?? [];
   const customerChoices = candidates.map((c, i) => ({label: c.name, value: String(i + 1)}));
   if (candidates.length) customerChoices.push({label: 'New customer', value: 'new customer'});
+  const options = amountOptions(p);
+  const amountSelection = options.length ? `\nChoose amount: ${options.map((label, i) => `${i + 1}. ${label}`).join(' / ')}\n` : '';
   const selection = candidates.length && !p.entries.some(e => !e.amountKobo || e.needsDueDate) ? `\nChoose for ${candidateEntry!.customerName}: ${customerChoices.map(c => `${c.value}. ${c.label}`).join(' / ')}\n` : '';
-  return { replyText: `${summary}\n${p.flags.length ? `Please clarify before saving: ${p.flags.join('; ')}\nChoose 2 to edit and send the complete corrected details.\n` : ''}${selection}${CONFIRMATION_PROMPT}`, pending: { id: p.id, summary, flags: p.flags, ...(p.flags.length ? { clarifications: p.flags.map(question => ({question, ...(question === 'Choose the customer or confirm a new customer.' && selection ? {options: customerChoices} : question.startsWith('Please clarify ') && amountOptions(p).length && question.includes('₦') ? {options: amountOptions(p).map((label, i) => ({label, value: String(i + 1)}))} : {})})) } : {}) } };
+  return { replyText: `${summary}\n${p.flags.length ? `Please clarify before saving: ${p.flags.join('; ')}\nChoose 2 to edit and send the complete corrected details.\n` : ''}${amountSelection}${selection}${CONFIRMATION_PROMPT}`, pending: { id: p.id, summary, flags: p.flags, ...(p.flags.length ? { clarifications: p.flags.map(question => ({question, ...(question === 'Choose the customer or confirm a new customer.' && selection ? {options: customerChoices} : question === (p.entries.find(e => !e.amountKobo)?.amountQuestion?.flag ?? p.flags.find(f => /^Please clarify .*: ₦/.test(f))) && options.length > 0 ? {options: amountOptions(p).map((label, i) => ({label, value: String(i + 1)}))} : {})})) } : {}) } };
 }
 /** Deliberately narrow deterministic grammar. Model output alone never clears transaction ambiguity. */
 function independentlyMatched(text: string, kind: string, name: string | null, amount: string | null): boolean {
@@ -77,14 +81,20 @@ export class Service implements BookkeepingService {
     // entries at once: the trader must resolve each one separately.
     const missing = p?.entries.findIndex(e => !e.amountKobo) ?? -1;
     const amountQuestion = p?.flags.some(f => f === 'Please clarify the stated amount.' || /^Please clarify .*: ₦/.test(f));
-    if (p && p.status === 'review' && missing >= 0 && amountQuestion && (options.length > 0 || !p.flags.some(f => /^Please clarify .*: ₦/.test(f))) && !/^(?:1 save|2 edit|3 cancel)$/i.test(text)) {
+    if (p && p.status === 'review' && missing >= 0 && amountQuestion && (p.entries[missing].amountQuestion || options.length > 0 || !p.flags.some(f => /^Please clarify .*: ₦/.test(f))) && !/^(?:1 save|2 edit|3 cancel)$/i.test(text)) {
       const chosen = /^[1-9]$/.test(text) ? options[Number(text) - 1] : undefined;
       // Bare 1/2/3 remain review commands unless explicitly offered as options.
       const parsed = !chosen && /^[123]$/.test(text) ? undefined : parseNaira(chosen ?? text, chosen ?? text);
       if (parsed?.kind === 'amount') {
-        const entries = p.entries.map((e, i) => i === missing ? {...e, amountKobo: parsed.kobo} : e);
+        const question = p.entries[missing].amountQuestion;
+        const entries = p.entries.map((e, i) => i === missing ? {...e, amountKobo: parsed.kobo, amountQuestion: undefined} : e);
         const hasMore = entries.some(e => !e.amountKobo);
-        const flags = p.flags.filter(f => f !== 'Missing or invalid amount' && (hasMore || (f !== 'Please clarify the stated amount.' && !/^Please clarify .*: ₦/.test(f))));
+        const flags = p.flags.filter(f => {
+          if (f === 'Missing or invalid amount') return hasMore;
+          if (question && f === question.flag) return entries.some(e => e.amountQuestion?.flag === f);
+          if (!question && !hasMore && (f === 'Please clarify the stated amount.' || /^Please clarify .*: ₦/.test(f))) return false;
+          return true;
+        });
         const draft: PendingDraft = {ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: `${p.rawInput}\nClarification: ${text}`, entries, flags};
         return review(this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft), this.store);
       }
@@ -152,8 +162,8 @@ export class Service implements BookkeepingService {
         const subject = f.kind === 'purchase' ? f.description : f.customer_name;
         if (!quoteOK || !subject || !sourceHasSpan(f.evidence_text, subject)) flags.push('Please clarify the customer or stock description and transaction.');
         const amount = f.amount_text && quoteOK ? parseNaira(f.amount_text, f.evidence_text) : { kind: 'invalid' as const };
-        if (amount.kind === 'ambiguous') flags.push(`Please clarify ${f.amount_text}: ${amount.candidatesKobo.map(format).join(' or ')}?`);
-        if (amount.kind === 'invalid') flags.push('Please clarify the stated amount.');
+        const amountFlag = amount.kind === 'ambiguous' ? `Please clarify ${f.amount_text}: ${amount.candidatesKobo.map(format).join(' or ')}?` : amount.kind === 'invalid' ? 'Please clarify the stated amount.' : undefined;
+        if (amountFlag) flags.push(amountFlag);
         let dueDate: string | undefined;
         let needsDueDate = false;
         if (f.kind === 'sale' && !f.due_date_text && /\b(next week|soon|when market (?:is )?good)\b/i.test(f.evidence_text)) needsDueDate = true;
@@ -166,7 +176,7 @@ export class Service implements BookkeepingService {
         const customer = f.customer_name && quoteOK && sourceHasSpan(f.evidence_text, f.customer_name) ? this.store.findCustomer(this.ownerId, f.customer_name) : undefined;
         const similar = !customer && f.kind !== 'purchase' && subject && quoteOK && sourceHasSpan(f.evidence_text, subject) ? this.store.customers(this.ownerId).filter(c => closeName(c.name, subject)) : [];
         if (similar.length) flags.push('Choose the customer or confirm a new customer.');
-        const main = { kind: f.kind, ...(similar.length ? {customerCandidates: similar.map(c => c.id)} : {}), ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(dueDate ? { dueDate } : {}), ...(needsDueDate ? { needsDueDate } : {}) };
+        const main = { kind: f.kind, ...(similar.length ? {customerCandidates: similar.map(c => c.id)} : {}), ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(amountFlag ? {amountQuestion: {source: f.amount_text ?? undefined, candidatesKobo: amount.kind === 'ambiguous' ? amount.candidatesKobo : [], flag: amountFlag}} : {}), ...(dueDate ? { dueDate } : {}), ...(needsDueDate ? { needsDueDate } : {}) };
         if (!f.remaining_text) return [main];
         const remaining = quoteOK ? parseNaira(f.remaining_text, f.evidence_text) : { kind: 'invalid' as const };
         if (f.kind !== 'sale' || amount.kind !== 'amount' || remaining.kind !== 'amount' || remaining.kobo >= amount.kobo || f.remaining_text === f.amount_text || call.args.entries.some(other => other !== f && other.kind === 'payment' && other.customer_name?.toLocaleLowerCase() === f.customer_name?.toLocaleLowerCase())) {
@@ -199,6 +209,19 @@ export class Service implements BookkeepingService {
     });
     const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries, flags };
     return review(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store);
+  }
+  async resolveClarification(input: ClarificationInput): Promise<MessageReply> {
+    this.check(input);
+    const current = this.store.current(this.ownerId, input.channel, input.senderId);
+    if (current.length !== 1 || current[0].id !== input.pendingId || current[0].status !== 'review' || !current[0].flags.length) throw new Error('Stale or unavailable clarification');
+    // Interactive payloads may answer a question, never invoke save/edit/cancel.
+    const answer = input.answer.trim();
+    const p = current[0];
+    const firstMissing = p.entries.find(e => !e.amountKobo);
+    const candidate = !firstMissing && !p.entries.some(e => e.needsDueDate) ? p.entries.find(e => e.customerCandidates?.length) : undefined;
+    const numericChoices = firstMissing ? amountOptions(p).length : candidate?.customerCandidates?.length ?? 0;
+    if (/^(?:1 save|2 edit|3 cancel)$/i.test(answer) || (/^[123]$/.test(answer) && Number(answer) > numericChoices)) throw new Error('Invalid clarification answer');
+    return this.handleMessage({channel: input.channel, senderId: input.senderId, text: input.answer});
   }
   async confirm(input: PendingActionInput): Promise<MessageReply> {
     this.check(input); this.store.confirm(this.ownerId, input.pendingId, input.channel, input.senderId); return { replyText: 'Saved.' };

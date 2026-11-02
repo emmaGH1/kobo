@@ -77,6 +77,29 @@ it('answers missing amounts one at a time without saving or accepting stale revi
   } finally {store.close();}
 });
 
+it('keeps two ambiguous amounts independent and rejects stale or cross-owner confirmations', async () => {
+  const text='Bola bought on credit for three eight. Bola paid three eight';
+  const {store,service}=setup([entry({amount_text:'three eight',evidence_text:'Bola bought on credit for three eight'}),entry({kind:'payment',amount_text:'three eight',evidence_text:'Bola paid three eight'})]);
+  store.sqlite.exec("INSERT INTO owners VALUES ('b','B','x',0)");
+  try {
+    const first=await service.handleMessage({...ctx,text});
+    const second=await service.resolveClarification({...ctx,pendingId:first.pending!.id,answer:'1'});
+    expect(second.pending!.id).not.toBe(first.pending!.id);
+    await expect(service.resolveClarification({...ctx,pendingId:first.pending!.id,answer:'2'})).rejects.toThrow();
+    await expect(new Service('b',store,{} as ModelProvider).resolveClarification({...ctx,pendingId:second.pending!.id,answer:'2'})).rejects.toThrow();
+    expect(second.pending!.flags.length).toBeGreaterThan(0);
+    await expect(new Service('b',store,{} as ModelProvider).confirm({...ctx,pendingId:second.pending!.id})).rejects.toThrow();
+    await expect(service.confirm({...ctx,pendingId:first.pending!.id})).rejects.toThrow();
+    const third=await service.handleMessage({...ctx,text:'2'});
+    expect(third.pending!.flags).toEqual([]);
+    expect(store.events('a')).toHaveLength(0);
+    const amounts=store.pending('a',third.pending!.id)!.entries.map(e=>e.amountKobo);
+    expect(amounts[0]).not.toBe(amounts[1]);
+    await service.confirm({...ctx,pendingId:third.pending!.id});
+    expect(store.events('a').map(e=>e.amountKobo)).toEqual(amounts);
+  } finally {store.close();}
+});
+
 it('clarifies an uncertain date in Lagos without saving and rejects invalid dates', async () => {
   const clock=vi.spyOn(Date,'now').mockReturnValue(Date.parse('2030-01-01T23:30:00Z'));
   const text='Bola bought on credit for 12k due next week';

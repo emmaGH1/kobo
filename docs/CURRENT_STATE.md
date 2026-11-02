@@ -15,6 +15,10 @@
 No features implemented. No API calls were made and no voice harness files changed. HANDOVER.md intentionally starts as a blank template at the owner's request; this file records initial setup evidence.
 
 ## Core lane
+
+### Latest partial continuation
+Per-entry amount options and a review-ID-bound clarification API were added, with fresh reviews and stale/cross-owner tests. Full structured clarification, interactive adapter wiring, design section 4 exact copy and remembered Pidgin/English selection remain incomplete. An authorized live 25-case run completed once; its test passed only the 25-classifications accounting assertion, and aggregate results and provider token totals were suppressed by Vitest and are unavailable. No accuracy result can be claimed for that run and it was not repeated. Typecheck, lint, 67 offline tests (one live test skipped), and production build passed; see HANDOVER for limitations.
+
 Checkpoint A implemented on `core`: owner/customer/alias, pending action, append-only event and evidence schema; pure integer-kobo balances, debtors and daily summaries; transactional, idempotent confirmation; owner/conversation scoping, expiry, cancellation and replacement review IDs. Confirmation retries acknowledge the same committed result without appending. No UI, AI, authentication or HTTP routes yet.
 
 Verification: 14 Vitest tests passed (13 ledger cases + setup smoke); typecheck, lint and production build passed. Tests cover paid/partial sales, opening debt/repayment, reversal/re-entry, duplicate keys/confirms, missing amount/customer, exact integers/overflow rollback, owner isolation, expiry, edit/cancel and append-only triggers.

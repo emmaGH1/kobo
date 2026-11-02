@@ -23,7 +23,16 @@ it.skipIf(process.env.KOBO_LIVE_EVAL !== '1')('evaluates 25 synthetic messages a
   let passed=0, failed=0, errors=0;
   const selected = process.env.KOBO_LIVE_CASES?.split(',').map(value => Number(value.trim()));
   if (selected && selected.some(n => !Number.isInteger(n) || n < 1 || n > cases.length)) throw new Error('Invalid synthetic case selection');
-  const provider=createModelProvider();
+  const underlying=createModelProvider();
+  let inputTokens=0, outputTokens=0, usageResponses=0;
+  const provider = { ...underlying, listModels: () => underlying.listModels(), requestToolResponse: async (...args: Parameters<typeof underlying.requestToolResponse>) => {
+    const response = await underlying.requestToolResponse(...args);
+    const usage = (response as {usage?: {input_tokens?: unknown; output_tokens?: unknown}})?.usage;
+    if (typeof usage?.input_tokens === 'number' && Number.isSafeInteger(usage.input_tokens) && usage.input_tokens >= 0 && typeof usage.output_tokens === 'number' && Number.isSafeInteger(usage.output_tokens) && usage.output_tokens >= 0) {
+      inputTokens += usage.input_tokens; outputTokens += usage.output_tokens; usageResponses++;
+    }
+    return response;
+  }};
   for (const [index, [text,kind,amount]] of cases.entries()) {
     if (selected && !selected.includes(index + 1)) continue;
     const store=new LedgerStore(':memory:');
@@ -42,6 +51,8 @@ it.skipIf(process.env.KOBO_LIVE_EVAL !== '1')('evaluates 25 synthetic messages a
     }
     finally {store.close();}
   }
-  console.log(`Live synthetic evaluation: ${passed} passed, ${failed} failed, ${errors} errors, ${selected ? new Set(selected).size : cases.length} total; no confirmations.`);
+  // Write directly: some Vitest reporters suppress console.log from passing tests.
+  process.stdout.write(`Live synthetic evaluation: ${passed} passed, ${failed} failed, ${errors} errors, ${selected ? new Set(selected).size : cases.length} total; no confirmations.\n`);
+  process.stdout.write(`Provider usage: ${inputTokens} input tokens, ${outputTokens} output tokens from ${usageResponses} responses with usage; errors or missing usage are not included.\n`);
   expect(passed+failed+errors).toBe(selected ? new Set(selected).size : 25);
 }, 600000);
