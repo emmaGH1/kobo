@@ -33,51 +33,47 @@ So I built something that writes while she sells.
 
 *(on screen: kobo · You sell. Kobo remembers.)*
 
-## M3 · how it thinks (0:47 to 1:15)
+## M3 · talk it (0:47 to 1:10)
 TONE: clear, steady, explaining. Normal pace.
 MUSIC: minimal pulse, low in the mix.
 
 It's called Kobo, and it lives in WhatsApp, where she already is.
 
-She holds the mic and talks, the way she'd talk to her sister: Pidgin, English, or both. Five seconds, and she's back with her customer.
+When Bayo takes the oil, Nkechi holds the mic and talks, the way she'd talk to her sister: *"Bayo carry one groundnut oil, three eight. E go pay Friday."* Five seconds, and she's back with her customer.
 
-Meta's Muse Voice turns the voice note into text. Muse Spark works out who took what, how much they paid, and when the rest is coming.
+Meta's Muse Voice writes it down. Muse Spark works out who took what, how much, and when the money is coming. Kobo reads it back, and nothing goes into the book until she taps save.
 
-Then Kobo reads it back. Nothing goes into the book until she taps save.
+If a figure could mean two things, Kobo asks instead of guessing. And all the maths is plain code, not AI.
 
-## M4 · the one rule (1:15 to 1:40)
-TONE: slower, every word weighted. Let the pause breathe.
-MUSIC: cuts to **silence** on "three eight". Returns on "It asks."
-
-Unless Kobo isn't sure.
-
-Friday, Bayo comes back with the oil money. Nkechi records: *"Bayo pay me three eight."*
-
-Three thousand eight hundred? Or thirty-eight thousand?
-
-Kobo doesn't pick. It asks.
-
-A bookkeeper that guesses is worse than no bookkeeper. And the maths is plain code, not AI. Every naira adds up exactly, and nothing is ever erased.
-
-## M5 · a day (1:40 to 2:10)
+## M4 · kobo remembers (1:10 to 1:45)
 TONE: lively, a bit of energy, quicker.
 MUSIC: the full groove (afro / amapiano instrumental).
 
-Here's a whole day.
+Now Kobo remembers for her.
 
-Morning: five cartons of biscuits from the distributor. Money out.
+*"Who dey owe me?"* Everyone, biggest first, and how long they've owed.
 
-Noon: a sale on credit, half paid, balance Friday. Kobo turns "Friday" into a date.
+*"Show me Bayo."* Every sale, every payment, every promise he made.
 
-Evening: *"Who dey owe me?"* Everyone, biggest first.
+Stock she bought, money she collected, credit she gave. And every night, her whole day on one page, ready to screenshot.
 
-And at night, the whole day on one page.
+## M5 · friday (1:45 to 2:20)
+TONE: warm, then quietly proud. This is the payoff.
+MUSIC: the groove drops out for one beat; a WhatsApp notification lands in the quiet; a soft version of the theme comes in under the rest.
 
-## M6 · Friday (2:10 to 2:30)
-TONE: warm, back to M1's closeness.
-MUSIC: M1's soft theme returns with a light groove under it.
+Friday morning.
 
-On Friday morning, Kobo reminds Nkechi who's due, and drafts a polite message she sends from her own phone. Kobo never talks to her customers. She does.
+Nkechi didn't write anything down. She didn't have to.
+
+Kobo messages her: Bayo's oil money is due today. Three thousand eight hundred.
+
+And it drafts a polite reminder she can forward to Bayo from her own phone. Kobo never talks to her customers. She does. She just doesn't have to remember anymore.
+
+Bayo pays. She says so in one voice note. The book is square.
+
+## M6 · close (2:20 to 2:32)
+TONE: warm, simple, close to M1.
+MUSIC: M1's soft theme returns to finish.
 
 No more "later".
 
