@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUpRight } from "lucide-react";
 import { KoboLogo, KoboMark } from "@/components/kobo/logo";
 import { WhatsAppDemo } from "@/components/chat/whatsapp-demo";
 import { Film } from "./film";
+import { NotebookPhoto } from "./notebook-photo";
 
 /*
  * v3 philosophy (docs/DESIGN.md): show the transformation, not the interface. The page is a
@@ -130,10 +131,11 @@ const keeps = [
 export function Keeps() {
   return (
     <section id="keeps" className={`${wrap} scroll-mt-4 py-24 lg:py-36`}>
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
         <h2 className="text-[44px] leading-[0.98] tracking-[-0.03em] lg:col-span-7 lg:text-[72px]">
           Everything the notebook did. <span className="text-ink-2">None of the arithmetic.</span>
         </h2>
+        <NotebookPhoto className="lg:col-span-4 lg:col-start-9" />
       </div>
       <ol className="mt-16 border-t border-ink">
         {keeps.map((k, i) => (
