@@ -1,0 +1,15 @@
+@import "../../../src/app/globals.css";
+@source "../../../src";
+@source "./";
+
+@font-face { font-family: "GeistSerifK"; src: url("../../../src/app/fonts/GeistSerifVF.woff2") format("woff2"); }
+@font-face { font-family: "GeistSansK"; src: url("../../../src/app/fonts/Geist-Variable.woff2") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "NairaSerifK"; src: url("../../../src/app/fonts/naira-serif.woff2") format("woff2"); }
+@font-face { font-family: "NairaSansK"; src: url("../../../src/app/fonts/naira-sans.woff2") format("woff2"); }
+
+:root {
+  --font-geist-serif: "GeistSerifK";
+  --font-naira-serif: "NairaSerifK";
+  --font-geist-sans: "GeistSansK";
+  --font-naira-sans: "NairaSansK";
+}
