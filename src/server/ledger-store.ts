@@ -17,6 +17,8 @@ export interface EntryDraft {
   dueDate?: string;
   /** Unresolved source date, tracked per entry until answered. */
   needsDueDate?: boolean;
+  /** Candidate IDs frozen at proposal time; selection remains explicit. */
+  customerCandidates?: string[];
 }
 export interface PendingDraft {
   ownerId: string; channel: string; senderId: string; idempotencyKey: string;
@@ -85,6 +87,7 @@ export class LedgerStore {
     if (!entries.length) flags.push('No ledger entries supplied');
     for (const entry of entries) {
       if (entry.needsDueDate) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
+      if (entry.customerCandidates?.length) flags.push('Choose the customer or confirm a new customer.');
       if (entry.kind === 'purchase') {
         if (entries.length !== 1 || !entry.description?.trim() || entry.description.length > 200 || entry.customerId || entry.dueDate || entry.reversalOf) flags.push('Invalid stock purchase');
         try { money(entry.amountKobo); } catch { flags.push('Missing or invalid amount'); }

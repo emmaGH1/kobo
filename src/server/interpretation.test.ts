@@ -93,3 +93,20 @@ it('clarifies an uncertain date in Lagos without saving and rejects invalid date
     expect(store.events('a')[0].dueDate).toBe('2030-01-03');
   } finally {store.close();clock.mockRestore();}
 });
+
+it('selects a close customer explicitly into a new review', async () => {
+  const text='Bola bought on credit for 12k';
+  const {store,service}=setup([entry()]);
+  store.sqlite.exec("INSERT INTO customers(id,owner_id,name) VALUES ('c','a','Bolo')");
+  try {
+    const first=await service.handleMessage({...ctx,text});
+    expect(first.pending?.clarifications?.some(c => c.options?.some(o => o.label === 'Bolo'))).toBe(true);
+    await expect(service.confirm({...ctx,pendingId:first.pending!.id})).rejects.toThrow();
+    const second=await service.handleMessage({...ctx,text:'1'});
+    expect(second.pending?.flags).toEqual([]);
+    expect(store.events('a')).toHaveLength(0);
+    await expect(service.confirm({...ctx,pendingId:first.pending!.id})).rejects.toThrow();
+    await service.confirm({...ctx,pendingId:second.pending!.id});
+    expect(store.events('a')[0].customerId).toBe('c');
+  } finally {store.close();}
+});

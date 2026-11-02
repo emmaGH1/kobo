@@ -47,7 +47,12 @@ function amountOptions(p: Pending): string[] {
 function review(p: Pending, store: LedgerStore): MessageReply {
   const customers = store.customers(p.ownerId);
   const summary = p.entries.map(e => `${e.kind}: ${e.kind === 'purchase' ? e.description ?? 'unknown stock' : customers.find(c => c.id === e.customerId)?.name ?? (e.customerName ? `${e.customerName} (new customer)` : 'unknown customer')} — ${e.amountKobo ? format(e.amountKobo) : 'unknown amount'}${e.dueDate ? `, due ${e.dueDate}` : ''}${e.calculatedFromBalance ? ' (calculated as sale total minus stated unpaid amount)' : ''}`).join('\n');
-  return { replyText: `${summary}\n${p.flags.length ? `Please clarify before saving: ${p.flags.join('; ')}\nChoose 2 to edit and send the complete corrected details.\n` : ''}${CONFIRMATION_PROMPT}`, pending: { id: p.id, summary, flags: p.flags, ...(p.flags.length ? { clarifications: p.flags.map(question => ({question, ...(question.startsWith('Please clarify ') && amountOptions(p).length && question.includes('₦') ? {options: amountOptions(p).map((label, i) => ({label, value: String(i + 1)}))} : {})})) } : {}) } };
+  const candidateEntry = p.entries.find(e => e.customerCandidates?.length);
+  const candidates = candidateEntry?.customerCandidates?.map(id => customers.find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c) ?? [];
+  const customerChoices = candidates.map((c, i) => ({label: c.name, value: String(i + 1)}));
+  if (candidates.length) customerChoices.push({label: 'New customer', value: 'new customer'});
+  const selection = candidates.length && !p.entries.some(e => !e.amountKobo || e.needsDueDate) ? `\nChoose for ${candidateEntry!.customerName}: ${customerChoices.map(c => `${c.value}. ${c.label}`).join(' / ')}\n` : '';
+  return { replyText: `${summary}\n${p.flags.length ? `Please clarify before saving: ${p.flags.join('; ')}\nChoose 2 to edit and send the complete corrected details.\n` : ''}${selection}${CONFIRMATION_PROMPT}`, pending: { id: p.id, summary, flags: p.flags, ...(p.flags.length ? { clarifications: p.flags.map(question => ({question, ...(question === 'Choose the customer or confirm a new customer.' && selection ? {options: customerChoices} : question.startsWith('Please clarify ') && amountOptions(p).length && question.includes('₦') ? {options: amountOptions(p).map((label, i) => ({label, value: String(i + 1)}))} : {})})) } : {}) } };
 }
 /** Deliberately narrow deterministic grammar. Model output alone never clears transaction ambiguity. */
 function independentlyMatched(text: string, kind: string, name: string | null, amount: string | null): boolean {
@@ -91,6 +96,18 @@ export class Service implements BookkeepingService {
       if (dueDate) {
         const entries = p.entries.map((e, i) => i === dateIndex ? {...e, dueDate, needsDueDate: false} : e);
         const flags = p.flags.filter(f => f !== dateQuestion || entries.some(e => e.needsDueDate));
+        const draft: PendingDraft = {ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: `${p.rawInput}\nClarification: ${text}`, entries, flags};
+        return review(this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft), this.store);
+      }
+    }
+    const customerIndex = p?.entries.findIndex(e => e.customerCandidates?.length) ?? -1;
+    if (p && p.status === 'review' && !amountQuestion && dateIndex < 0 && customerIndex >= 0 && !/^(?:1 save|2 edit|3 cancel)$/i.test(text)) {
+      const entry = p.entries[customerIndex];
+      const candidates = entry.customerCandidates!.map(id => this.store.customers(this.ownerId).find(c => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c);
+      const selected = /^[1-9]\d*$/.test(text) ? candidates[Number(text) - 1] : candidates.find(c => c.name.toLocaleLowerCase() === text.toLocaleLowerCase());
+      if (selected || /^new customer$/i.test(text)) {
+        const entries = p.entries.map((e, i) => i !== customerIndex ? e : {...e, customerCandidates: undefined, ...(selected ? {customerId: selected.id, customerName: undefined} : {})});
+        const flags = p.flags.filter(f => f !== 'Choose the customer or confirm a new customer.' || entries.some(e => e.customerCandidates?.length));
         const draft: PendingDraft = {ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: `${p.rawInput}\nClarification: ${text}`, entries, flags};
         return review(this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft), this.store);
       }
@@ -147,18 +164,16 @@ export class Service implements BookkeepingService {
         }
         if (needsDueDate) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
         const customer = f.customer_name && quoteOK && sourceHasSpan(f.evidence_text, f.customer_name) ? this.store.findCustomer(this.ownerId, f.customer_name) : undefined;
-        if (!customer && f.kind !== 'purchase' && subject) {
-          const similar = this.store.customers(this.ownerId).filter(c => closeName(c.name, subject));
-          if (similar.length) flags.push(`Similar customer: ${similar.map(c => c.name).join(', ')}. Please edit with the exact name.`);
-        }
-        const main = { kind: f.kind, ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(dueDate ? { dueDate } : {}), ...(needsDueDate ? { needsDueDate } : {}) };
+        const similar = !customer && f.kind !== 'purchase' && subject && quoteOK && sourceHasSpan(f.evidence_text, subject) ? this.store.customers(this.ownerId).filter(c => closeName(c.name, subject)) : [];
+        if (similar.length) flags.push('Choose the customer or confirm a new customer.');
+        const main = { kind: f.kind, ...(similar.length ? {customerCandidates: similar.map(c => c.id)} : {}), ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(dueDate ? { dueDate } : {}), ...(needsDueDate ? { needsDueDate } : {}) };
         if (!f.remaining_text) return [main];
         const remaining = quoteOK ? parseNaira(f.remaining_text, f.evidence_text) : { kind: 'invalid' as const };
         if (f.kind !== 'sale' || amount.kind !== 'amount' || remaining.kind !== 'amount' || remaining.kobo >= amount.kobo || f.remaining_text === f.amount_text || call.args.entries.some(other => other !== f && other.kind === 'payment' && other.customer_name?.toLocaleLowerCase() === f.customer_name?.toLocaleLowerCase())) {
           flags.push('Please clarify the sale total and unpaid balance.');
           return [main];
         }
-        return [main, { kind: 'payment' as const, ...(customer ? {customerId:customer.id} : {customerName:subject ?? undefined}), amountKobo: amount.kobo - remaining.kobo, calculatedFromBalance: true }];
+        return [main, { kind: 'payment' as const, ...(similar.length ? {customerCandidates: similar.map(c => c.id)} : {}), ...(customer ? {customerId:customer.id} : {customerName:subject ?? undefined}), amountKobo: amount.kobo - remaining.kobo, calculatedFromBalance: true }];
       });
       const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries, flags };
       return review(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store);
