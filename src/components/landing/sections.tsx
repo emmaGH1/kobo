@@ -20,7 +20,7 @@ export function Nav() {
         <KoboLogo className="h-8 w-auto text-ink" />
       </a>
       <nav className="flex items-center gap-7 font-sans text-[14px] text-ink-2">
-        <a className="hidden hover:text-ink md:inline" href="#film">Watch</a>
+        <a className="hidden hover:text-ink md:inline" href="#film">The day</a>
         <a className="hidden hover:text-ink md:inline" href="#rule">The rule</a>
         <a className="hidden hover:text-ink md:inline" href="#keeps">What it keeps</a>
         <a className="hidden hover:text-ink md:inline" href={GITHUB}>GitHub</a>
@@ -32,34 +32,39 @@ export function Nav() {
 
 export function Hero() {
   return (
-    <section id="top" className={`${wrap} pt-10 lg:pt-16`}>
-      <p className={label}>WhatsApp bookkeeping for Nigerian market traders</p>
-      <h1 className="mt-6 text-[52px] leading-[0.95] tracking-[-0.035em] sm:text-[80px] lg:text-[96px] xl:text-[108px]">
-        Talk your sales.
-        <br />
-        <span className="text-ink-2">
-          Kobo keeps <span className="kmark">the book</span>.
-        </span>
-      </h1>
-      <div className="mt-10 grid gap-8 lg:grid-cols-12">
-        <p className="max-w-[46ch] font-sans text-[18px] leading-[1.6] text-ink-2 lg:col-span-6">
-          Send a voice note in Pidgin or English. Kobo records the stock you buy, what you sell on credit
-          and who owes you, reminds you when payment is due, and saves nothing until you say so. Every
-          total is counted by code, never guessed.
-        </p>
-        <div className="flex flex-wrap items-start gap-3 font-sans lg:col-span-5 lg:col-start-8 lg:justify-end">
-          <a href="#try" className="flex h-12 items-center gap-2 rounded-full bg-ink px-6 text-[15px] text-paper">
-            Try it yourself <ArrowDown className="size-4" strokeWidth={1.75} />
-          </a>
-          <a href="#rule" className="flex h-12 items-center rounded-full border border-ink/25 px-6 text-[15px] text-ink hover:border-ink">
-            Why it never guesses
-          </a>
-        </div>
-      </div>
-
-      <div id="film" className="mt-14 scroll-mt-8 border-t border-ink/12 pt-12 lg:mt-16 lg:pt-14">
-        <Film />
-      </div>
+    <section id="top" className={`${wrap} pt-4 lg:pt-10`}>
+      <Film
+        intro={
+          <>
+            <p className={label}>WhatsApp bookkeeping for Nigerian market traders</p>
+            <h1 className="mt-4 text-[44px] leading-[0.96] tracking-[-0.035em] sm:text-[64px] lg:mt-6 lg:text-[68px] xl:text-[80px]">
+              Talk your sales.
+              <br />
+              <span className="text-ink-2">
+                Kobo keeps <span className="kmark">the book</span>.
+              </span>
+            </h1>
+            <p className="mt-4 max-w-[34ch] font-sans text-[16px] leading-[1.55] text-ink-2 sm:hidden">
+              Voice notes in, a clean book out. Nothing saved until you confirm.
+            </p>
+            <p className="mt-6 hidden max-w-[46ch] font-sans text-[18px] leading-[1.6] text-ink-2 sm:block">
+              Send a voice note in Pidgin or English. Kobo records the stock you buy, what you sell on credit
+              and who owes you, reminds you when payment is due, and saves nothing until you say so. Every
+              total is counted by code, never guessed.
+            </p>
+          </>
+        }
+        actions={
+          <div className="flex flex-wrap items-start gap-3 font-sans">
+            <a href="#try" className="flex h-12 items-center gap-2 rounded-full bg-ink px-6 text-[15px] text-paper">
+              Try it yourself <ArrowDown className="size-4" strokeWidth={1.75} />
+            </a>
+            <a href="#film" className="flex h-12 items-center rounded-full border border-ink/25 px-6 text-[15px] text-ink hover:border-ink">
+              Follow the day
+            </a>
+          </div>
+        }
+      />
     </section>
   );
 }

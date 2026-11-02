@@ -164,7 +164,7 @@ function CaptionView({ c }: { c: Caption }) {
 
 const ENTRY = { credit: "Credit sale", paid: "Paid", stock: "Stock bought", fix: "Correction", opening: "Opening balance" } as const;
 
-export function Film() {
+export function Film({ intro, actions }: { intro: React.ReactNode; actions: React.ReactNode }) {
   const frames = useMemo<Frame[]>(() => buildFilm(), []);
   const starts = useMemo(() => chapterStarts(frames), [frames]);
   const reduced = useSyncExternalStore(subscribeRM, () => window.matchMedia(RM).matches, () => false);
@@ -214,24 +214,13 @@ export function Film() {
   };
 
   return (
-    <div ref={root}>
-      {/* chapters */}
-      <ol className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-6">
-        {CHAPTERS.map((c, k) => (
-          <li key={c.t}>
-            <button type="button" onClick={() => goTo(starts[k])} className="group block w-full text-left" aria-current={f.chapter === k ? "step" : undefined}>
-              <span aria-hidden className="relative block h-[3px] overflow-hidden rounded-full bg-ink/10">
-                <span className="absolute inset-y-0 left-0 bg-lav transition-[width] duration-300 ease-linear" style={{ width: `${chapterProgress(k) * 100}%` }} />
-              </span>
-              <span className="mt-3 block font-sans text-[12px] text-ink-3">{c.when}</span>
-              <span className={`mt-0.5 block text-[16px] leading-tight transition-colors sm:text-[18px] lg:text-[20px] ${f.chapter === k ? "text-ink" : "text-ink-3 group-hover:text-ink-2"}`}>{c.t}</span>
-            </button>
-          </li>
-        ))}
-      </ol>
+    <div ref={root} className="grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:gap-x-8 lg:gap-y-0">
+      {/* 1. headline (mobile: first) */}
+      <div className="min-w-0 lg:col-span-6 lg:row-start-1">{intro}</div>
 
-      <div className="mt-12 grid gap-12 lg:grid-cols-12 lg:gap-8">
-        <div className="flex justify-center lg:col-span-5">
+      {/* 2. the film's phone: second on mobile, pinned on the right on desktop */}
+      <div className="flex justify-center lg:col-span-5 lg:col-start-8 lg:row-span-3 lg:row-start-1 lg:justify-end">
+        <div className="lg:sticky lg:top-6 lg:self-start">
           <PhoneShell label="Film: a trader's day with Kobo in WhatsApp" scrollRef={scroller}>
             {f.msgs.map((m) =>
               m.from === "date" ? (
@@ -247,8 +236,29 @@ export function Film() {
             {f.typing && <Typing />}
           </PhoneShell>
         </div>
+      </div>
 
-        <div className="flex min-w-0 flex-col lg:col-span-7">
+      {/* 3. actions (mobile: after the phone) */}
+      <div className="min-w-0 lg:col-span-6 lg:row-start-2 lg:pt-8">{actions}</div>
+
+      {/* 4. chapters, caption, book */}
+      <div id="film" className="flex min-w-0 scroll-mt-6 flex-col lg:col-span-6 lg:row-start-3 lg:pt-16">
+        {/* chapters */}
+      <ol className="grid grid-cols-3 gap-x-3 gap-y-5">
+        {CHAPTERS.map((c, k) => (
+          <li key={c.t}>
+            <button type="button" onClick={() => goTo(starts[k])} className="group block w-full text-left" aria-current={f.chapter === k ? "step" : undefined}>
+              <span aria-hidden className="relative block h-[3px] overflow-hidden rounded-full bg-ink/10">
+                <span className="absolute inset-y-0 left-0 bg-lav transition-[width] duration-300 ease-linear" style={{ width: `${chapterProgress(k) * 100}%` }} />
+              </span>
+              <span className="mt-3 block font-sans text-[12px] text-ink-3">{c.when}</span>
+              <span className={`mt-0.5 block text-[16px] leading-tight transition-colors sm:text-[18px] lg:text-[20px] ${f.chapter === k ? "text-ink" : "text-ink-3 group-hover:text-ink-2"}`}>{c.t}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+
+        <div className="mt-10 flex min-w-0 flex-col">
           <div className="min-h-[200px]" aria-live="polite" key={i}>
             <div className="msg-in">
               <CaptionView c={f.caption} />
@@ -269,7 +279,7 @@ export function Film() {
               ].map((x) => (
                 <div key={x.l}>
                   <dt className="font-sans text-[12px] text-ink-2 sm:text-[13px]">{x.l}</dt>
-                  <dd className={`tnum mt-1 text-[20px] leading-none tracking-[-0.02em] sm:text-[30px] lg:text-[36px] ${x.c}`}>{x.v}</dd>
+                  <dd className={`tnum mt-1 text-[20px] leading-none tracking-[-0.02em] sm:text-[30px] lg:text-[28px] xl:text-[32px] ${x.c}`}>{x.v}</dd>
                 </div>
               ))}
             </dl>
@@ -285,7 +295,7 @@ export function Film() {
                 )}
                 {f.book.map((r) => (
                   <tr key={r.id} className="book-row border-b border-ink/8 last:border-0">
-                    <td className="tnum hidden py-2.5 pr-3 text-ink-3 sm:table-cell">{r.time}</td>
+                    <td className="tnum hidden py-2.5 pr-3 text-ink-3 sm:table-cell lg:hidden xl:table-cell">{r.time}</td>
                     <td className="py-2.5 pr-3 font-serif text-[15px] leading-tight sm:text-[16px]">{r.name}</td>
                     <td className="hidden py-2.5 pr-3 text-ink-2 sm:table-cell">{ENTRY[r.entry]}</td>
                     <td className={`tnum whitespace-nowrap py-2.5 pr-3 text-right ${r.entry === "credit" || r.entry === "opening" ? "text-owed" : r.entry === "paid" ? "text-paid" : ""}`}>
