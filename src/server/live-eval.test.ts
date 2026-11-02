@@ -21,18 +21,21 @@ const cases: [string, string, number | null][] = [
 ];
 it.skipIf(process.env.KOBO_LIVE_EVAL !== '1')('evaluates 25 synthetic messages against the live configured provider', async () => {
   let passed=0, failed=0, errors=0;
+  const selected = process.env.KOBO_LIVE_CASES?.split(',').map(value => Number(value.trim()));
+  if (selected && selected.some(n => !Number.isInteger(n) || n < 1 || n > cases.length)) throw new Error('Invalid synthetic case selection');
   const provider=createModelProvider();
-  for (const [text,kind,amount] of cases) {
+  for (const [index, [text,kind,amount]] of cases.entries()) {
+    if (selected && !selected.includes(index + 1)) continue;
     const store=new LedgerStore(':memory:');
     try {
       store.sqlite.exec("INSERT INTO owners VALUES ('a','A','x',0)");
       const result=await new Service('a',store,provider).handleMessage({channel:'web',senderId:'s',text});
       const pending=result.pending && store.pending('a',result.pending.id);
       const ok=amount === null ? !!pending?.flags.length : !!pending && pending.flags.length === 0 && pending.entries.length === 1 && pending.entries[0].kind === kind && pending.entries[0].amountKobo === amount && pending.entries[0].customerName === text.split(' ')[0];
-      if (ok) passed++; else {failed++; console.log(`Case ${passed+failed+errors} failed`);}
-    } catch { errors++; console.log(`Case ${passed+failed+errors} provider or processing error`); }
+      if (ok) passed++; else {failed++; console.log(`Case ${index+1} failed`);}
+    } catch { errors++; console.log(`Case ${index+1} provider or processing error`); }
     finally {store.close();}
   }
-  console.log(`Live synthetic evaluation: ${passed} passed, ${failed} failed, ${errors} errors, ${cases.length} total; no confirmations.`);
-  expect(passed+failed+errors).toBe(25);
+  console.log(`Live synthetic evaluation: ${passed} passed, ${failed} failed, ${errors} errors, ${selected ? new Set(selected).size : cases.length} total; no confirmations.`);
+  expect(passed+failed+errors).toBe(selected ? new Set(selected).size : 25);
 }, 600000);
