@@ -18,16 +18,36 @@ export const tools: ToolRequest['tools'] = [
 function resolveDueDate(text: string): string | undefined {
   if (validDueDate(text)) return text;
   const relative = text.toLocaleLowerCase();
-  if (relative !== 'today' && relative !== 'tomorrow') return;
+  const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const weekday = weekdays.indexOf(relative.replace(/^next\s+/, ''));
+  if (relative !== 'today' && relative !== 'tomorrow' && weekday < 0) return;
   const lagos = new Date(Date.now() + 3600000);
-  const day = Date.UTC(lagos.getUTCFullYear(), lagos.getUTCMonth(), lagos.getUTCDate() + (relative === 'tomorrow' ? 1 : 0));
+  const delta = weekday >= 0 ? ((weekday - lagos.getUTCDay() + 6) % 7) + 1 : relative === 'tomorrow' ? 1 : 0;
+  const day = Date.UTC(lagos.getUTCFullYear(), lagos.getUTCMonth(), lagos.getUTCDate() + delta);
   return new Date(day).toISOString().slice(0, 10);
 }
+function closeName(a: string, b: string): boolean {
+  a = a.trim().toLocaleLowerCase(); b = b.trim().toLocaleLowerCase();
+  if (a === b || Math.abs(a.length - b.length) > 1 || Math.min(a.length, b.length) < 3) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length >= b.length) i++;
+    if (b.length >= a.length) j++;
+  }
+  return edits + Number(i < a.length || j < b.length) <= 1;
+}
 const format = (n: number) => `${n < 0 ? '-' : ''}₦${Math.floor(Math.abs(n) / 100)}.${String(Math.abs(n) % 100).padStart(2, '0')}`;
+function amountOptions(p: Pending): string[] {
+  if (p.entries.filter(e => !e.amountKobo).length !== 1) return [];
+  const flag = p.flags.find(f => /^Please clarify .*: ₦/.test(f));
+  return flag ? [...flag.matchAll(/₦[\d]+\.\d{2}/g)].map(m => m[0]) : [];
+}
 function review(p: Pending, store: LedgerStore): MessageReply {
   const customers = store.customers(p.ownerId);
   const summary = p.entries.map(e => `${e.kind}: ${e.kind === 'purchase' ? e.description ?? 'unknown stock' : customers.find(c => c.id === e.customerId)?.name ?? (e.customerName ? `${e.customerName} (new customer)` : 'unknown customer')} — ${e.amountKobo ? format(e.amountKobo) : 'unknown amount'}${e.dueDate ? `, due ${e.dueDate}` : ''}${e.calculatedFromBalance ? ' (calculated as sale total minus stated unpaid amount)' : ''}`).join('\n');
-  return { replyText: `${summary}\n${p.flags.length ? `Please clarify before saving: ${p.flags.join('; ')}\nChoose 2 to edit and send the complete corrected details.\n` : ''}${CONFIRMATION_PROMPT}`, pending: { id: p.id, summary, flags: p.flags, ...(p.flags.length ? { clarifications: p.flags.map(question => ({question})) } : {}) } };
+  return { replyText: `${summary}\n${p.flags.length ? `Please clarify before saving: ${p.flags.join('; ')}\nChoose 2 to edit and send the complete corrected details.\n` : ''}${CONFIRMATION_PROMPT}`, pending: { id: p.id, summary, flags: p.flags, ...(p.flags.length ? { clarifications: p.flags.map(question => ({question, ...(question.startsWith('Please clarify ') && amountOptions(p).length && question.includes('₦') ? {options: amountOptions(p).map((label, i) => ({label, value: String(i + 1)}))} : {})})) } : {}) } };
 }
 /** Deliberately narrow deterministic grammar. Model output alone never clears transaction ambiguity. */
 function independentlyMatched(text: string, kind: string, name: string | null, amount: string | null): boolean {
@@ -47,6 +67,17 @@ export class Service implements BookkeepingService {
     const current = this.store.current(this.ownerId, input.channel, input.senderId);
     if (current.length > 1) return { replyText: 'Multiple pending reviews need attention; use their review IDs.' };
     const p = current[0];
+    const options = p && p.status === 'review' ? amountOptions(p) : [];
+    if (p && options.length && !/^(?:1 save|2 edit|3 cancel)$/i.test(text)) {
+      const chosen = /^[1-9]$/.test(text) ? options[Number(text) - 1] : undefined;
+      const parsed = parseNaira(chosen ?? text, chosen ?? text);
+      if (parsed.kind === 'amount') {
+        const entries = p.entries.map(e => e.amountKobo ? e : {...e, amountKobo: parsed.kobo});
+        const flags = p.flags.filter(f => !/^Please clarify .*: ₦/.test(f) && f !== 'Missing or invalid amount');
+        const draft: PendingDraft = {ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: `${p.rawInput}\nClarification: ${text}`, entries, flags};
+        return review(this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft), this.store);
+      }
+    }
     if (p && /^(1(?: save)?|2(?: edit)?|3(?: cancel)?)$/i.test(text)) {
       const action = { channel: input.channel, senderId: input.senderId, pendingId: p.id };
       if (text[0] === '1') return this.confirm(action);
@@ -81,6 +112,7 @@ export class Service implements BookkeepingService {
     }
     if (call.name === 'record_entries') {
       const flags: string[] = [];
+      if (/\b(ignore|override|system prompt|developer message|do not ask|without confirmation)\b/i.test(text)) flags.push('Please edit and provide only the transaction details.');
       const entries = call.args.entries.flatMap(f => {
         const quoteOK = sourceHasSpan(text, f.evidence_text);
         const subject = f.kind === 'purchase' ? f.description : f.customer_name;
@@ -89,11 +121,16 @@ export class Service implements BookkeepingService {
         if (amount.kind === 'ambiguous') flags.push(`Please clarify ${f.amount_text}: ${amount.candidatesKobo.map(format).join(' or ')}?`);
         if (amount.kind === 'invalid') flags.push('Please clarify the stated amount.');
         let dueDate: string | undefined;
+        if (f.kind === 'sale' && !f.due_date_text && /\b(next week|soon|when market (?:is )?good)\b/i.test(f.evidence_text)) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
         if (f.due_date_text) {
           if (f.kind === 'sale' && quoteOK && sourceHasSpan(f.evidence_text, f.due_date_text)) dueDate = resolveDueDate(f.due_date_text);
-          if (!dueDate) flags.push('Please clarify the due date as YYYY-MM-DD, today or tomorrow.');
+          if (!dueDate) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
         }
         const customer = f.customer_name && quoteOK && sourceHasSpan(f.evidence_text, f.customer_name) ? this.store.findCustomer(this.ownerId, f.customer_name) : undefined;
+        if (!customer && f.kind !== 'purchase' && subject) {
+          const similar = this.store.customers(this.ownerId).filter(c => closeName(c.name, subject));
+          if (similar.length) flags.push(`Similar customer: ${similar.map(c => c.name).join(', ')}. Please edit with the exact name.`);
+        }
         const main = { kind: f.kind, ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(dueDate ? { dueDate } : {}) };
         if (!f.remaining_text) return [main];
         const remaining = quoteOK ? parseNaira(f.remaining_text, f.evidence_text) : { kind: 'invalid' as const };

@@ -20,7 +20,7 @@ export interface PendingReview {
   /** Unresolved ambiguity blocks confirmation; never silently guess missing values. */
   flags: string[];
   /** Questions that must be resolved by replacing the review; no answer saves implicitly. */
-  clarifications?: { question: string }[];
+  clarifications?: { question: string; options?: { label: string; value: string }[] }[];
 }
 
 export interface MessageReply {
