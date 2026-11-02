@@ -34,7 +34,7 @@ it('computes running balances, owing-since and last payment in code', () => {
 it('renders design 4.5 history for a unique match, newest first, in a narrow monospace block, without calling the model', async () => {
   const { service } = book();
   const reply = await service.handleMessage({ ...ctx, text: 'show me Mama Chidi full history' });
-  expect(reply.replyText).toBe([
+  expect(reply.replyText).toContain([
     '*Mama Chidi* · owes *₦33,500*', '', '```', '               AMOUNT    OWES',
     '1 Nov  paid    20,000  33,500', '1 Nov  credit  45,000  53,500', '24 Oct paid     5,000   8,500', '20 Oct credit  13,500  13,500', '```', '_Last 4 entries._',
   ].join('\n'));

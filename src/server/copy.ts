@@ -187,6 +187,12 @@ export const balanceText = (l: Language, name: string, balance: number) =>
   : balance === 0 ? `${bold(name)} · ${pick(l, 'owes nothing', 'e don clear')}`
   : `${bold(name)} · ${pick(l, 'has credit', 'get credit')} ${bold(formatNaira(-balance))}`; // not in design
 
+/** Recorded debt age, not a claim about lateness or the original age of imported debt. */
+export function customerMemory(l: Language, balance: number, days?: number, paid?: number): string {
+  const age = balance > 0 && days !== undefined ? pick(l, `Owing for ${days} ${days===1?'day':'days'} in this book`, `E don owe for ${days} ${days===1?'day':'days'} for this book`) : pick(l,'No unpaid balance','No debt remain');
+  return `${age}${paid===undefined?'':pick(l, ` · last paid ${lagosDay(paid)}`, ` · last pay ${lagosDay(paid)}`)}`;
+}
+
 // ---- 4.7 errors and edge states ----
 export const errors = {
   down: (l: Language) => pick(l, 'Something went wrong on my side. *Nothing was saved.* Please try again shortly.', 'Something spoil for my side. *I never save anything.* Try again small time.'),

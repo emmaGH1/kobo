@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { add, balances, dailySummary, debtors, history, type Customer } from '../core/ledger';
+import { add, balances, dailySummary, debtors, history, lastPaidAt, owingDays, type Customer } from '../core/ledger';
 import { parseNaira, sourceHasSpan } from '../core/naira';
 import { type BookkeepingService, type MessageReply, type PendingActionInput, type EditPendingInput, type MessageInput, type ClarificationInput, type InteractiveInput } from '../core/contract';
 import { LedgerStore, validDueDate, type EntryDraft, type Pending, type PendingDraft } from './ledger-store';
@@ -152,8 +152,11 @@ export class Service implements BookkeepingService {
     return detected ?? stored?.language ?? 'en';
   }
   private debtorsReply(lang: Language): MessageReply {
-    const rows = debtors(this.store.events(this.ownerId), this.store.customers(this.ownerId)).map(c => ({ name: c.name, balance: c.balanceKobo }));
-    return { replyText: copy.debtorsText(lang, rows) };
+    const events = this.store.events(this.ownerId);
+    const customers = debtors(events, this.store.customers(this.ownerId));
+    const rows = customers.map(c => ({ name: c.name, balance: c.balanceKobo }));
+    const body = copy.debtorsText(lang, rows);
+    return { replyText: body, ...(customers.length ? { interactive: { kind: 'list' as const, body: body.slice(0,1024), listButton: copy.pickLabel(lang), rows: customers.slice(0,10).map(c=>({id:`customer:${c.id}`,title:c.name.length>24?`${c.name.slice(0,23)}…`:c.name,description:copy.customerMemory(lang,c.balanceKobo,owingDays(events,c.id),lastPaidAt(events,c.id)).slice(0,72)})) } } : {}) }; 
   }
   /** Lagos civil day containing `now`: [start, end) in UTC milliseconds. Lagos is UTC+01:00 all year. */
   private lagosDay(now = Date.now()) {
@@ -180,8 +183,10 @@ export class Service implements BookkeepingService {
     const refs = this.store.eventRefs(this.ownerId);
     const rows = history(events, customer.id);
     const balance = rows.length ? rows[rows.length - 1].balanceKobo : 0;
-    const body = copy.historyText(lang, customer.name, balance, rows.map(r => ({ at: r.occurredAt, kind: r.kind, amount: r.amountKobo, balance: r.balanceKobo, ...(r.reversalOf && refs.has(r.reversalOf) ? { undoes: copy.refLabel(refs.get(r.reversalOf)!) } : {}) })));
-    return { replyText: body, interactive: { kind: 'buttons', body, buttons: [copy.button('query:debtors', copy.whoOwesLabel(lang))] } };
+    const base = copy.historyText(lang, customer.name, balance, rows.map(r => ({ at: r.occurredAt, kind: r.kind, amount: r.amountKobo, balance: r.balanceKobo, ...(r.reversalOf && refs.has(r.reversalOf) ? { undoes: copy.refLabel(refs.get(r.reversalOf)!) } : {}) })));
+    const memory = copy.customerMemory(lang,balance,owingDays(events,customer.id),lastPaidAt(events,customer.id));
+    const body = `${base}\n_${memory}_`;
+    return { replyText: body, interactive: { kind: 'buttons', body: body.slice(0,1024), buttons: [copy.button('query:debtors', copy.whoOwesLabel(lang))] } };
   }
   /** Exact name or alias first; otherwise every customer whose name contains the typed words. */
   private lookupCustomers(typed: string): Customer[] {
@@ -267,6 +272,8 @@ export class Service implements BookkeepingService {
       if (/^(?:how market(?: today)?|day summary|daily summary|summary|my book today)\??$/i.test(text)) return this.summaryReply(lang);
       const who = /^(?:show me\s+)?(.+?)\s+(?:full\s+)?(?:history|book)$/i.exec(text)?.[1] ?? /^(?:show me\s+)?(?:full\s+)?history\s+(?:of\s+|for\s+)?(.+)$/i.exec(text)?.[1];
       if (who) return this.historyFor(who.replace(/^(?:me\s+)/i, ''), lang);
+      const days = /^(?:how many days (.+?) dey owe me|how (?:many days|long) (?:has )?(.+?) (?:owed|owe)(?: me)?)\??$/i.exec(text);
+      if (days) return this.historyFor(days[1] ?? days[2], lang);
     }
     if (p && p.status !== 'editing') return render(p, this.store, lang);
     // Narrow, complete English credit-sale grammar for the two failed evaluation phrases.
@@ -275,9 +282,20 @@ export class Service implements BookkeepingService {
     if (credit) {
       const amount = parseNaira(credit[2], text);
       const customer = this.store.findCustomer(this.ownerId, credit[1]);
-      const entries: EntryDraft[] = [{ kind: 'sale', ...(customer ? { customerId: customer.id } : { customerName: credit[1] }), ...(amount.kind === 'amount' ? { amountKobo: amount.kobo } : {}) }];
+      const similar = customer ? [] : this.store.customers(this.ownerId).filter(c=>closeName(c.name,credit[1]));
+      const entries: EntryDraft[] = [{ kind: 'sale', ...(customer ? { customerId: customer.id } : { customerName: credit[1] }), ...(similar.length?{customerCandidates:similar.map(c=>c.id)}:{}), ...(amount.kind === 'amount' ? { amountKobo: amount.kobo } : {}) }];
       const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries };
       return render(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store, lang);
+    }
+    // Complete numeric Pidgin payment clauses are safe to review without a model.
+    // Ambiguous verbal amounts and extra clauses deliberately fall through to extraction/clarification.
+    const paid = /^([\p{L}][\p{L} .'-]{0,99}?) (?:don pay|pay) (?:me )?(?:₦)?((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)(?: naira)?[.!]?$/iu.exec(text);
+    if (paid) {
+      const amount = parseNaira(paid[2],text);
+      const customer = this.store.findCustomer(this.ownerId,paid[1]);
+      const similar = customer ? [] : this.store.customers(this.ownerId).filter(c=>closeName(c.name,paid[1]));
+      const draft: PendingDraft = {ownerId:this.ownerId,channel:input.channel,senderId:input.senderId,idempotencyKey:randomUUID(),rawInput:text,entries:[{kind:'payment',...(customer?{customerId:customer.id}:{customerName:paid[1]}),...(similar.length?{customerCandidates:similar.map(c=>c.id)}:{}),...(amount.kind==='amount'?{amountKobo:amount.kobo}:{})}]};
+      return render(p?this.store.replace(this.ownerId,p.id,input.channel,input.senderId,draft):this.store.propose(draft),this.store,lang);
     }
     // An exact, explicit command does not need a model to reinterpret it.
     const purchase = /^stock purchase\s*:\s*([^:\n]+?)\s*:\s*(\d+(?:\.\d{1,2})?)\s*$/i.exec(text);

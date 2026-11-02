@@ -16,6 +16,9 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Ordered continuation checkpoint 2
+Recorded Lagos civil-day debt age and last-paid memory now appear in customer history/debtor list rows. Partial payment keeps age, clearing/reborrowing resets; no inferred overdue claims. Numeric Pidgin payment clauses create explicit reviews without model calls; close names remain blocked for choice. 98 offline tests passed, 1 live skipped; typecheck/lint/build passed. No paid calls/native-speaker validation.
+
 ### Ordered continuation checkpoint 1
 Core `/api/demo/*` adapter implemented: seeded isolated 30-minute sessions; same Service messages and ID-bound actions; ReplyView render hints; actual-provider-call session/daily limits; reset revocation without quota refill; samples and authenticated PNG summary. No consented voice clip exists: voice-sample honestly returns 503. Design backend not switched (separate lane). 96 offline tests passed, 1 live skipped; typecheck/lint/build passed. Production-loopback synthetic session/review/save/PNG exercised without model calls; not external HTTPS proof. See HANDOVER for exact action envelope, IP trust configuration, limitations.
 

@@ -97,6 +97,11 @@ export function owingSince(events: readonly LedgerEvent[], customerId: string): 
   }
   return previous > 0 ? since : undefined;
 }
+/** Civil-day age of the current positive balance, from recorded entries, not an inferred overdue date. */
+export function owingDays(events: readonly LedgerEvent[], customerId: string, now = Date.now()): number | undefined {
+  const since = owingSince(events,customerId);
+  return since === undefined ? undefined : Math.max(0,Math.floor((now+3600000)/86400000)-Math.floor((since+3600000)/86400000));
+}
 /** Time of the most recent payment that has not been reversed. */
 export function lastPaidAt(events: readonly LedgerEvent[], customerId: string): number | undefined {
   const undone = new Set(events.filter(e => e.kind === 'reversal' && e.reversalOf).map(e => e.reversalOf));
