@@ -21,7 +21,7 @@ Not started. Owns src/core/, src/server/, src/app/api/, src/app/dev/, db/. Share
 Not started. Owns src/components/ and src/app/(app)/. No approved visual direction; neutral root placeholder only. Real shadcn init configuration/utils/themes exist, no component library copied by hand.
 
 ## Docs lane
-Initial setup documents exist. Official rubric/submission requirements remain unverified.
+Judge-facing README drafted on `docs` from `main`. Main remains setup-only; integration and public demo URL are pending. The live synthetic eval is linked to `core`, not claimed as a main-branch feature. Official rubric/submission requirements remain unverified.
 
 ## Next single action
 Owner supplies the domain/subdomain and arranges the administrator activation step in docs/DEPLOYMENT.md. Do not start product features in this setup thread.
