@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Reminders } from './reminders';
+import { Inventory } from './inventory';
 import { extractNotebook, notebookImage } from './notebook';
 import { add, balances, dailySummary, debtors, history, lastPaidAt, owingDays, type Customer } from '../core/ledger';
 import { parseNaira, sourceHasSpan } from '../core/naira';
@@ -78,6 +79,14 @@ function questionsOf(p: Pending, store: LedgerStore): Question[] {
 const subjectOf = (e: EntryDraft, customers: Customer[]) => e.kind === 'purchase' ? e.description ?? 'stock' : customers.find(c => c.id === e.customerId)?.name ?? e.customerName ?? 'the customer';
 const sign = (kind: string) => (kind === 'payment' ? -1 : 1);
 function render(p: Pending, store: LedgerStore, lang: Language): MessageReply {
+  if(p.entries[0]?.kind==='stock_movement') {
+    const e=p.entries[0],inventory=new Inventory(store.sqlite);
+    let body:string;
+    try{const v=inventory.preview(p.ownerId,e);body=copy.stockReview(lang,v);}catch{body=copy.pick(lang,'Stock movement needs an edit.','Stock movement need edit.');}
+    if(p.flags.length)body+=`\n${copy.blockedNote(lang,p.flags)}`;
+    body+='\n\n1 save / 2 edit / 3 cancel';
+    return {replyText:body,pending:{id:p.id,summary:body,flags:p.flags},interactive:copy.reviewInteractive(lang,p.id,body,p.flags.length>0)};
+  }
   const customers = store.customers(p.ownerId);
   const queue = questionsOf(p, store);
   const summary = p.entries.map(e => `${e.kind}: ${subjectOf(e, customers)}${!e.customerId && e.customerName && e.kind !== 'purchase' ? ' (new customer)' : ''} — ${e.amountKobo ? formatNaira(e.amountKobo) : 'unknown amount'}${e.dueDate ? `, due ${e.dueDate}` : ''}${e.calculatedFromBalance ? ' (calculated as sale total minus stated unpaid amount)' : ''}`).join('\n');
@@ -184,6 +193,16 @@ export class Service implements BookkeepingService {
       owedKobo: rows.reduce((t, r) => add(t, r.balanceKobo), 0), biggest: rows[0] && { name: rows[0].name, balance: rows[0].balanceKobo },
     });
     return { replyText: body, interactive: { kind: 'buttons', body, buttons: copy.summaryButtons(lang) } };
+  }
+  private insightsReply(lang:Language):MessageReply {
+    const {start,end}=this.lagosDay(),since=start-6*86400000;
+    const events=this.store.events(this.ownerId),totals=dailySummary(events,since,end);
+    const payments=this.store.customers(this.ownerId).map(c=>{
+      // Reversals count in the period in which they were confirmed, like daily summaries.
+      const own=events.filter(e=>e.customerId===c.id);
+      return {name:c.name,paidKobo:dailySummary(own,since,end).collectionsKobo,payments:own.filter(e=>e.kind==='payment'&&e.occurredAt>=since&&e.occurredAt<end).length};
+    }).filter(c=>c.paidKobo>0).sort((a,b)=>b.paidKobo-a.paidKobo||a.name.localeCompare(b.name)).slice(0,4);
+    return {replyText:copy.insightsText(lang,{since,until:start,creditKobo:totals.salesKobo,collectedKobo:totals.collectionsKobo,stockKobo:this.store.spent(this.ownerId,since,end),payments})};
   }
   /** Design 4.5. Read-only; the running balance column is calculated by code. */
   private historyReply(customer: Customer, lang: Language): MessageReply {
@@ -319,13 +338,20 @@ export class Service implements BookkeepingService {
     }
     if (/^(who dey owe me|who owes? me|debtors)\??$/i.test(text)) return this.debtorsReply(lang);
     if (!p || p.status === 'editing') {
+      if(/^(?:stock|stock left|inventory)\??$/i.test(text))return {replyText:copy.stockText(lang,new Inventory(this.store.sqlite).rows(this.ownerId))};
+      if(/^(?:insights|this week|weekly summary)\??$/i.test(text))return this.insightsReply(lang);
       if (/^(?:how market(?: today)?|day summary|daily summary|summary|my book today)\??$/i.test(text)) return this.summaryReply(lang);
-      const who = /^(?:show me\s+)?(.+?)\s+(?:full\s+)?(?:history|book)$/i.exec(text)?.[1] ?? /^(?:show me\s+)?(?:full\s+)?history\s+(?:of\s+|for\s+)?(.+)$/i.exec(text)?.[1];
+      const who = /^(?:show(?: me)?\s+)?(.+?)\s+(?:full\s+)?(?:history|book)$/i.exec(text)?.[1] ?? /^(?:show me\s+)?(?:full\s+)?history\s+(?:of\s+|for\s+)?(.+)$/i.exec(text)?.[1];
       if (who) return this.historyFor(who.replace(/^(?:me\s+)/i, ''), lang);
       const days = /^(?:how many days (.+?) dey owe me|how (?:many days|long) (?:has )?(.+?) (?:owed|owe)(?: me)?)\??$/i.exec(text);
       if (days) return this.historyFor(days[1] ?? days[2], lang);
     }
     if (p && p.status !== 'editing') return render(p, this.store, lang);
+    const movement=/^stock (in|out)\s*:\s*([^:\n]{1,100})\s*:\s*([^:\n]{1,30})\s*:\s*(\d+)(?:\s*:\s*reorder\s+(\d+))?$/i.exec(text);
+    if(movement) {
+      const draft:PendingDraft={ownerId:this.ownerId,channel:input.channel,senderId:input.senderId,idempotencyKey:randomUUID(),rawInput:text,entries:[{kind:'stock_movement',stockName:movement[2].trim(),stockUnit:movement[3].trim(),quantityDelta:Number(movement[4])*(movement[1].toLowerCase()==='in'?1:-1),...(movement[5]!==undefined?{reorderAt:Number(movement[5])}:{})}]};
+      return render(p?this.store.replace(this.ownerId,p.id,input.channel,input.senderId,draft):this.store.propose(draft),this.store,lang);
+    }
     // Narrow, complete English credit-sale grammar for the two failed evaluation phrases.
     // No fuzzy matching, guessed amounts or writes; it still produces an owner-bound review.
     const credit = /^([\p{L}][\p{L} .'-]{0,99}?) bought (?:goods )?on credit for ((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)(?: naira)?[.!]?$/u.exec(text);
@@ -498,7 +524,11 @@ export class Service implements BookkeepingService {
     const names = this.store.customers(this.ownerId);
     const totals = balances(this.store.events(this.ownerId));
     const rows = [...new Set(events.map(e => e.customerId))].map(id => ({ name: names.find(c => c.id === id)?.name ?? 'Customer', balance: totals[id] ?? 0 }));
-    const replyText = copy.savedText(lang, rows, purchase, info ? copy.refLabel(info.ref) : 'K-0000', info?.at ?? Date.now());
+    let replyText = copy.savedText(lang, rows, purchase, info ? copy.refLabel(info.ref) : 'K-0000', info?.at ?? Date.now());
+    if(pending.entries[0]?.kind==='stock_movement') {
+      const e=pending.entries[0],item=new Inventory(this.store.sqlite).rows(this.ownerId).find(r=>r.name.toLocaleLowerCase()===e.stockName!.toLocaleLowerCase()&&r.unit.toLocaleLowerCase()===e.stockUnit!.toLocaleLowerCase());
+      replyText+=`\n${copy.pick(lang,'Recorded stock left','Stock wey remain for book')}: ${item?.name} · ${item?.left} ${item?.unit}.`;
+    }
     return { replyText, interactive: copy.savedInteractive(lang, replyText) };
   }
   async edit(input: EditPendingInput): Promise<MessageReply> {

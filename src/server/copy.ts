@@ -193,6 +193,17 @@ export function customerMemory(l: Language, balance: number, days?: number, paid
   return `${age}${paid===undefined?'':pick(l, ` · last paid ${lagosDay(paid)}`, ` · last pay ${lagosDay(paid)}`)}`;
 }
 
+export function stockReview(l:Language,v:{name:string;unit:string;before:number;after:number;delta:number;reorderAt:number}) {
+  return [pick(l,'Shall I record this stock movement?','Make I record this stock movement?'),`*${v.name}* · ${v.unit}`,`${pick(l,'Recorded before','Before for book')}: ${v.before}`,`${pick(l,'Change','Change')}: ${v.delta>0?'+':''}${v.delta}`,`${pick(l,'After','After')}: ${v.after}`,`${pick(l,'Low-stock threshold','Low-stock level')}: ${v.reorderAt}`,pick(l,'Quantity only. This does not record a sale or purchase amount.','Na quantity only. This one no record sale or purchase money.')].join('\n');
+}
+export function stockText(l:Language,rows:{name:string;unit:string;left:number;reorderAt:number;low:boolean}[]) {
+  if(!rows.length)return pick(l,'No stock quantities recorded. Use "stock in: rice: bag: 5: reorder 2". Purchase spending alone does not tell me quantities left.','No stock quantity for book. Use "stock in: rice: bag: 5: reorder 2". Money wey you spend no tell me stock wey remain.');
+  return [`*${pick(l,'Recorded stock left','Stock wey remain for book')}*`,...rows.map(r=>`${r.name}: *${r.left} ${r.unit}*${r.low?pick(l,' · LOW',' · LOW'):''} · ${pick(l,'reorder at','reorder at')} ${r.reorderAt}`),'',pick(l,'From confirmed quantity movements only. Purchases and sales do not adjust stock automatically.','Na confirmed quantity movements only. Purchase and sale no change stock by itself.')].join('\n');
+}
+export function insightsText(l:Language,s:{since:number;until:number;creditKobo:number;collectedKobo:number;stockKobo:number;payments:{name:string;paidKobo:number;payments:number}[]}) {
+  return [`*${pick(l,'Last 7 days in your book','Last 7 days for your book')}* · ${lagosDay(s.since)} – ${lagosDay(s.until)}`,`Credit sales: *${formatNaira(s.creditKobo)}*`,`${pick(l,'Collected','Wetin you collect')}: *${formatNaira(s.collectedKobo)}*`,`${pick(l,'Stock bought','Stock wey you buy')}: *${formatNaira(s.stockKobo)}*`,'',pick(l,'Top customer payments (net of corrections):','Customer payments wey big pass (after corrections):'),...(s.payments.length?s.payments.map(c=>`${c.name} · *${formatNaira(c.paidKobo)}* · ${c.payments} ${pick(l,'payment entries','payment entries')}`):[pick(l,'No positive collections recorded in this period.','No positive collection for this period.')]),'',pick(l,'No product-sales ranking or profit estimate: item-level revenue and costs are not recorded. Payment entries are not customer visits.','No product-sales ranking or profit estimate: item revenue and cost no dey book. Payment entries no be customer visits.')].join('\n');
+}
+
 // ---- 4.10 / 4.11 reminders (generic purchase wording: item data isn't always recorded) ----
 export function dueReminder(l:Language,name:string,amount:number,total:number,date:string,at:number):string {
   const day=lagosDayWithWeekday(Date.parse(`${date}T07:00:00Z`));

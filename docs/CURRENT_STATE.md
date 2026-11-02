@@ -16,6 +16,9 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Ordered continuation checkpoint 5
+After 0–4: exact-command stock in/out with integer-unit reviews, explicit confirmation/idempotency, nonnegative/safe totals, owner isolation and append-only movements; stock-left/low-threshold reads. Rolling seven-Lagos-day insights compute money totals and customer net collections, not fabricated item rankings/profit/visits. No automatic quantity adjustment from sale/purchase prose. 112 offline tests passed, 1 live skipped; typecheck/lint/build passed. No UI/protected-path changes or model calls. Details and command grammar in HANDOVER.
+
 ### Ordered continuation checkpoint 4
 Notebook PNG/JPEG import now has private authenticated and quota-bound demo routes, inline configured Responses image transport, bounded/metadata-stripped in-memory images, opening-debt row parsing, ambiguity/name/repeated-row blocks, full explicit review and digest idempotency. 109 offline tests passed, 1 live skipped; typecheck/lint/build passed. Image payload tested with mocked transport only: no live Muse-image/handwriting accuracy proof or real customer image; no photo UI added. See HANDOVER for payload, limits and safety boundaries.
 

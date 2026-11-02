@@ -3,10 +3,15 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { Inventory } from './inventory';
 import { add, balances, money, type Customer, type LedgerEvent } from '../core/ledger';
 
 export interface EntryDraft {
-  kind: 'sale' | 'payment' | 'opening_debt' | 'reversal' | 'purchase';
+  kind: 'sale' | 'payment' | 'opening_debt' | 'reversal' | 'purchase' | 'stock_movement';
+  stockName?: string;
+  stockUnit?: string;
+  quantityDelta?: number;
+  reorderAt?: number;
   description?: string;
   customerId?: string;
   /** Source-checked proposed new customer; created only inside confirmation transaction. */
@@ -102,6 +107,11 @@ export class LedgerStore {
     for (const entry of entries) {
       if (entry.needsDueDate) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
       if (entry.customerCandidates?.length) flags.push('Choose the customer or confirm a new customer.');
+      if (entry.kind === 'stock_movement') {
+        if(entries.length!==1) flags.push('Stock movements need a separate review');
+        try{new Inventory(this.sqlite).preview(ownerId,entry);}catch(error){flags.push(error instanceof Error?error.message:'Invalid stock movement');}
+        continue;
+      }
       if (entry.kind === 'purchase') {
         if (entries.length !== 1 || !entry.description?.trim() || entry.description.length > 200 || entry.customerId || entry.dueDate || entry.reversalOf) flags.push('Invalid stock purchase');
         try { money(entry.amountKobo); } catch { flags.push('Missing or invalid amount'); }
@@ -156,6 +166,11 @@ export class LedgerStore {
       if (pending.status !== 'review' || pending.expiresAt <= Date.now()) throw new Error('Pending action is stale or expired');
       if (pending.flags.length || this.validate(ownerId,pending.entries).length) throw new Error('Resolve all flags before saving');
       const now = Date.now();
+      if (pending.entries[0]?.kind === 'stock_movement') {
+        new Inventory(this.sqlite).confirm(ownerId,id,pending.entries[0],now);
+        this.markConfirmed(ownerId,id,now);
+        return [];
+      }
       if (pending.entries[0]?.kind === 'purchase') {
         const entry = pending.entries[0];
         this.sqlite.prepare('INSERT INTO stock_purchases(id,owner_id,description,amount_kobo,pending_id,occurred_at) VALUES(?,?,?,?,?,?)').run(randomUUID(),ownerId,entry.description!,entry.amountKobo!,id,now);
