@@ -10,13 +10,33 @@ describe("hero film", () => {
     expect(starts.every((s, i) => s >= 0 && (i === 0 || s > starts[i - 1]))).toBe(true);
   });
 
-  it("never adds a book row without a confirming tap first", () => {
+  it("starts at ₦0 with an empty book", () => {
+    expect(film[0].stats.owed).toBe("₦0");
+    expect(film[0].book).toHaveLength(0);
+  });
+
+  it("never shows a total that confirmed rows don't add up to", () => {
+    const kobo = (v: string) => Number(v.replace(/[^\d]/g, ""));
+    for (const f of film) {
+      const net = f.book.reduce((a, r) => a + (r.entry === "opening" || r.entry === "credit" ? kobo(r.amount) : r.entry === "paid" ? -kobo(r.amount) : 0), 0);
+      expect(kobo(f.stats.owed)).toBe(net);
+    }
+  });
+
+  it("shows opening balances as confirmed rows before any other entry", () => {
+    const first = film.find((f) => f.book.length > 0)!;
+    expect(first.book.every((r) => r.entry === "opening")).toBe(true);
+    expect(first.caption.kind).toBe("opening");
+  });
+
+  it("adds day entries only after a confirming tap", () => {
     let saves = 0;
-    let prevRows = 0;
+    let prev = 0;
     for (const f of film) {
       if (f.pressed === "save") saves++;
-      if (f.book.length > prevRows) expect(saves).toBeGreaterThan(0);
-      prevRows = f.book.length;
+      const dayRows = f.book.filter((r) => r.entry !== "opening").length;
+      if (dayRows > prev) expect(saves).toBeGreaterThan(0);
+      prev = dayRows;
     }
   });
 
@@ -27,8 +47,8 @@ describe("hero film", () => {
 
   it("ends with code-calculated totals, a reminder and a drafted message", () => {
     const last = film[film.length - 1];
-    expect(last.stats).toEqual({ collected: "₦23,800", stock: "₦290,000", owed: "₦122,800" });
-    expect(last.book.map((r) => [r.entry, r.amount])).toEqual([
+    expect(last.stats).toEqual({ collected: "₦23,800", stock: "₦290,000", owed: "₦87,500" });
+    expect(last.book.filter((r) => r.entry !== "opening").map((r) => [r.entry, r.amount])).toEqual([
       ["stock", "₦290,000"],
       ["credit", "₦45,000"],
       ["paid", "₦20,000"],

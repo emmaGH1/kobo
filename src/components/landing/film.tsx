@@ -44,6 +44,18 @@ function CaptionView({ c }: { c: Caption }) {
           <p className={`${big} text-ink-3`}>…</p>
         </div>
       );
+    case "opening":
+      return (
+        <div>
+          <p className={LABEL}>Sun 1 Nov · carried over from the notebook, confirmed once</p>
+          <p className={big}>
+            Opening balances <span className="tnum">{c.total}</span>
+          </p>
+          <p className="mt-2 font-sans text-[14px] text-ink-2">
+            {c.rows.map((r) => `${r.name} ${r.amount}`).join(" · ")}
+          </p>
+        </div>
+      );
     case "heard":
       return (
         <div>
@@ -150,7 +162,7 @@ function CaptionView({ c }: { c: Caption }) {
   }
 }
 
-const ENTRY = { credit: "Credit sale", paid: "Paid", stock: "Stock bought", fix: "Correction" } as const;
+const ENTRY = { credit: "Credit sale", paid: "Paid", stock: "Stock bought", fix: "Correction", opening: "Opening balance" } as const;
 
 export function Film() {
   const frames = useMemo<Frame[]>(() => buildFilm(), []);
@@ -276,7 +288,7 @@ export function Film() {
                     <td className="tnum hidden py-2.5 pr-3 text-ink-3 sm:table-cell">{r.time}</td>
                     <td className="py-2.5 pr-3 font-serif text-[15px] leading-tight sm:text-[16px]">{r.name}</td>
                     <td className="hidden py-2.5 pr-3 text-ink-2 sm:table-cell">{ENTRY[r.entry]}</td>
-                    <td className={`tnum whitespace-nowrap py-2.5 pr-3 text-right ${r.entry === "credit" ? "text-owed" : r.entry === "paid" ? "text-paid" : ""}`}>
+                    <td className={`tnum whitespace-nowrap py-2.5 pr-3 text-right ${r.entry === "credit" || r.entry === "opening" ? "text-owed" : r.entry === "paid" ? "text-paid" : ""}`}>
                       {r.entry === "stock" ? "−" : ""}
                       {r.amount}
                     </td>

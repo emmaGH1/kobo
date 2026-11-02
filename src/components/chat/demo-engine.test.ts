@@ -145,3 +145,19 @@ describe("stock, due dates, reminders and the day summary", () => {
     expect(nextWeekday(new Date(2026, 10, 6), 5).getDate()).toBe(13); // Friday -> next Friday
   });
 });
+
+describe("opening balances", () => {
+  it("an empty book totals ₦0", () => {
+    const s = createDemo("pcm", []);
+    expect(s.customers).toHaveLength(0);
+    expect(dayTotals(s, new Date(2026, 10, 2)).owed).toBe(0);
+  });
+  it("every demo balance is backed by confirmed entries", () => {
+    for (const c of createDemo().customers) {
+      expect(c.entries.length).toBeGreaterThan(0);
+      expect(c.entries[0].owes).toBe(c.balance);
+      const net = c.entries.reduce((a, e) => a + (e.kind === "paid" ? -e.amount : e.amount), 0);
+      expect(net).toBe(c.balance);
+    }
+  });
+});

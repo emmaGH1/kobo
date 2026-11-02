@@ -12,7 +12,9 @@ import {
   naira,
   reminderDraft,
   step,
+  withOpening,
   type DemoState,
+  type OpeningBalance,
 } from "./demo-engine";
 import type { Msg } from "./phone";
 
@@ -27,6 +29,7 @@ export const CHAPTERS = [
 
 export type Caption =
   | { kind: "idle" }
+  | { kind: "opening"; rows: { name: string; amount: string }[]; total: string }
   | { kind: "heard"; text: string; marks: { text: string; doubt?: boolean }[] }
   | { kind: "proposal"; title: string; lines: { label: string; value: string; tone?: "owed" | "paid" | "out" }[] }
   | { kind: "ask"; heard: string; options: string[] }
@@ -41,7 +44,7 @@ export interface BookRow {
   id: string;
   time: string;
   name: string;
-  entry: "credit" | "paid" | "stock" | "fix";
+  entry: "credit" | "paid" | "stock" | "fix" | "opening";
   amount: string;
   owes?: string;
 }
@@ -62,8 +65,16 @@ const DAY = (h: number, m: number) => new Date(2026, 10, 2, h, m); // Monday 2 N
 const FRI = (h: number, m: number) => new Date(2026, 10, 6, h, m);
 const clock = (d: Date) => `${((d.getHours() + 11) % 12) + 1}:${String(d.getMinutes()).padStart(2, "0")} ${d.getHours() < 12 ? "AM" : "PM"}`;
 
+/** What the trader carried over from the paper notebook, confirmed once before the day starts. */
+export const FILM_OPENING: OpeningBalance[] = [
+  { id: "mama-chidi", name: "Mama Chidi", amount: naira(8500) },
+  { id: "bayo", name: "Bayo", amount: naira(31800) },
+  { id: "iya-basira", name: "Iya Basira", amount: naira(26000) },
+];
+
 export function buildFilm(): Frame[] {
-  let st: DemoState = createDemo("pcm");
+  // The book starts empty at ₦0. Every total on screen is backed by confirmed rows.
+  let st: DemoState = createDemo("pcm", []);
   const msgs: Msg[] = [];
   const book: BookRow[] = [];
   const frames: Frame[] = [];
@@ -95,16 +106,27 @@ export function buildFilm(): Frame[] {
   };
   const kobo = (views: ReturnType<typeof step>["replies"], at: Date) => views.forEach((view) => msgs.push({ id: `f${n++}`, from: "kobo", view, time: clock(at) }));
   const customer = (id: string) => st.customers.find((c) => c.id === id)!;
-  const tapSave = (at: Date) => {
+  /** Confirm, then write the book rows in the same frame the totals change. */
+  const tapSave = (at: Date, write: () => void) => {
     frame({ caption: { kind: "tap", label: "1 Save" }, pressed: "save", dur: 900 });
     you("1 Save", at);
     const r = run({ action: "save" }, at);
+    write();
     frame({ caption: { kind: "tap", label: "1 Save" }, typing: true, dur: 700 });
     kobo(r.replies, at);
     return r;
   };
 
-  frame({ caption: { kind: "idle" }, dur: 1400 });
+  frame({ caption: { kind: "idle" }, dur: 1200 });
+
+  // Opening balances: carried in from the notebook and confirmed, shown as rows first.
+  st = withOpening(st, FILM_OPENING);
+  for (const o of FILM_OPENING)
+    book.push({ id: `r${book.length}`, time: "Sun 1 Nov", name: o.name, entry: "opening", amount: formatNaira(o.amount), owes: formatNaira(o.amount) });
+  frame({
+    caption: { kind: "opening", rows: FILM_OPENING.map((o) => ({ name: o.name, amount: formatNaira(o.amount) })), total: formatNaira(FILM_OPENING.reduce((a, o) => a + o.amount, 0)) },
+    dur: 3400,
+  });
 
   // 1. Stock bought: money out.
   let at = DAY(7, 52);
@@ -115,8 +137,7 @@ export function buildFilm(): Frame[] {
   kobo(run({ text: STOCK_VOICE, voice: true }, at).replies, at);
   frame({ caption: { kind: "proposal", title: "Stock bought", lines: [{ label: "5 bag rice · Alhaji", value: formatNaira(naira(290000)), tone: "out" }, { label: "Paid", value: "Cash, in full" }] }, dur: 3000 });
   at = DAY(7, 53);
-  tapSave(at);
-  book.push({ id: `r${book.length}`, time: clock(at), name: "5 bag rice · Alhaji", entry: "stock", amount: formatNaira(naira(290000)) });
+  tapSave(at, () => book.push({ id: `r${book.length}`, time: clock(at), name: "5 bag rice · Alhaji", entry: "stock", amount: formatNaira(naira(290000)) }));
   frame({ caption: { kind: "saved", line: "Stock bought today", amount: stats().stock, tone: "out" }, dur: 2800 });
 
   // 2. Sold on credit with a promised date.
@@ -141,11 +162,12 @@ export function buildFilm(): Frame[] {
     dur: 3600,
   });
   at = DAY(12, 11);
-  tapSave(at);
-  customer("mama-chidi")
-    .entries.slice(0, 2)
-    .reverse()
-    .forEach((e) => book.push({ id: `r${book.length}`, time: clock(at), name: "Mama Chidi", entry: e.kind, amount: formatNaira(e.amount), owes: formatNaira(e.owes) }));
+  tapSave(at, () =>
+    customer("mama-chidi")
+      .entries.slice(0, 2)
+      .reverse()
+      .forEach((e) => book.push({ id: `r${book.length}`, time: clock(at), name: "Mama Chidi", entry: e.kind, amount: formatNaira(e.amount), owes: formatNaira(e.owes) })),
+  );
   frame({ caption: { kind: "saved", line: "Mama Chidi now owes", amount: formatNaira(customer("mama-chidi").balance), tone: "owed", note: `Reminder set for ${p2.due!.label}` }, dur: 3200 });
 
   // 3. Unclear amount: Kobo asks instead of guessing.
@@ -168,8 +190,7 @@ export function buildFilm(): Frame[] {
   kobo(r3.replies, at);
   frame({ caption: { kind: "proposal", title: "Bayo", lines: [{ label: "Paid", value: formatNaira(naira(3800)), tone: "paid" }, { label: "Will owe", value: formatNaira(customer("bayo").balance - naira(3800)) }] }, dur: 2400 });
   at = DAY(15, 41);
-  tapSave(at);
-  book.push({ id: `r${book.length}`, time: clock(at), name: "Bayo", entry: "paid", amount: formatNaira(naira(3800)), owes: formatNaira(customer("bayo").balance) });
+  tapSave(at, () => book.push({ id: `r${book.length}`, time: clock(at), name: "Bayo", entry: "paid", amount: formatNaira(naira(3800)), owes: formatNaira(customer("bayo").balance) }));
   frame({ caption: { kind: "saved", line: "Bayo now owes", amount: formatNaira(customer("bayo").balance), tone: "owed" }, dur: 2600 });
 
   // 4. Who owes me.

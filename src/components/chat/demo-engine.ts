@@ -26,7 +26,7 @@ const plain = (kobo: number) => formatNaira(kobo).slice(1);
 
 interface Entry {
   date: string;
-  kind: "credit" | "paid" | "fix";
+  kind: "credit" | "paid" | "fix" | "opening";
   amount: number;
   owes: number;
   ref?: string;
@@ -78,41 +78,63 @@ export interface DemoState {
   refCounter: number;
 }
 
-export function createDemo(lang: Lang = "pcm"): DemoState {
-  const c = (id: string, name: string, bal: number, entries: Entry[] = [], lastPaid?: string): Customer => ({
-    id,
-    name,
-    balance: naira(bal),
-    entries,
-    lastPaid,
-  });
-  return {
+/** A customer carried into the book with a confirmed opening balance (e.g. from the paper notebook). */
+export interface OpeningBalance {
+  id: string;
+  name: string;
+  amount: number;
+  /** Optional earlier confirmed entries, newest first. Their running balance must end at `amount`. */
+  history?: Entry[];
+  lastPaid?: string;
+}
+
+/** The interactive demo book: every balance is backed by confirmed entries. */
+export const DEMO_BOOK: OpeningBalance[] = [
+  {
+    id: "mama-chidi",
+    name: "Mama Chidi",
+    amount: naira(8500),
+    history: [
+      { date: "24 Oct", kind: "paid", amount: naira(5000), owes: naira(8500) },
+      { date: "20 Oct", kind: "credit", amount: naira(13500), owes: naira(13500) },
+    ],
+    lastPaid: "24 Oct",
+  },
+  { id: "bayo", name: "Bayo", amount: naira(31800), lastPaid: "26 Oct" },
+  { id: "iya-basira", name: "Iya Basira", amount: naira(26000), lastPaid: "18 Oct" },
+  { id: "emeka", name: "Emeka (spare parts)", amount: naira(19800), lastPaid: "12 Oct" },
+  { id: "ngozi", name: "Aunty Ngozi", amount: naira(12000), lastPaid: "30 Oct" },
+  { id: "tunde", name: "Tunde", amount: naira(3500), lastPaid: "28 Oct" },
+];
+
+const OPENING_DATE = "1 Nov";
+
+/** Adds customers whose balances come from confirmed opening entries. Never a bare number. */
+export function withOpening(s: DemoState, rows: OpeningBalance[]): DemoState {
+  const added: Customer[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    balance: r.amount,
+    entries: r.history ?? [{ date: OPENING_DATE, kind: "opening", amount: r.amount, owes: r.amount }],
+    lastPaid: r.lastPaid,
+  }));
+  return { ...s, customers: [...s.customers, ...added] };
+}
+
+/** A demo book. Pass `[]` for an empty book that starts at ₦0. */
+export function createDemo(lang: Lang = "pcm", book: OpeningBalance[] = DEMO_BOOK): DemoState {
+  const empty: DemoState = {
     lang,
     shop: "Nkechi Provisions",
     purchases: [],
-    customers: [
-      c(
-        "mama-chidi",
-        "Mama Chidi",
-        8500,
-        [
-          { date: "24 Oct", kind: "paid", amount: naira(5000), owes: naira(8500) },
-          { date: "20 Oct", kind: "credit", amount: naira(13500), owes: naira(13500) },
-        ],
-        "24 Oct",
-      ),
-      c("bayo", "Bayo", 31800, [], "26 Oct"),
-      c("iya-basira", "Iya Basira", 26000, [], "18 Oct"),
-      c("emeka", "Emeka (spare parts)", 19800, [], "12 Oct"),
-      c("ngozi", "Aunty Ngozi", 12000, [], "30 Oct"),
-      c("tunde", "Tunde", 3500, [], "28 Oct"),
-    ],
+    customers: [],
     pending: null,
     awaiting: null,
     lastSaved: null,
     version: 0,
     refCounter: 0,
   };
+  return withOpening(empty, book);
 }
 
 export interface DemoInput {
@@ -323,7 +345,7 @@ function historyView(s: DemoState, id: string): ReplyView {
       `${head}\n\n${pick(lang, "The demo book only has entries for Mama Chidi.", "The demo book only has entries for Mama Chidi.")}`,
     );
   const rows = c.entries.slice(0, 8).map((e) => {
-    const k = e.kind === "credit" ? "credit" : e.kind === "paid" ? "paid" : "fix";
+    const k = e.kind === "credit" ? "credit" : e.kind === "paid" ? "paid" : e.kind === "opening" ? "open" : "fix";
     return `${e.date.padEnd(6)} ${k.padEnd(6)} ${plain(e.amount).padStart(7)} ${plain(e.owes).padStart(7)}`;
   });
   const header = `${"".padEnd(6)} ${"".padEnd(6)} ${"AMOUNT".padStart(7)} ${"OWES".padStart(7)}`;
