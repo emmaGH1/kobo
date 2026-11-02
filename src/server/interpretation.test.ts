@@ -24,7 +24,7 @@ it('connects quoted shorthand to an atomic new-customer review', async () => {
 it('blocks fabricated quotations and ambiguous amounts', async () => {
   for (const [e,text] of [[entry(), 'Bola bought on credit for 15k'],[entry({amount_text:'three eight',evidence_text:'Bola bought on credit for three eight'}),'Bola bought on credit for three eight']] as const) {
     const {store,service}=setup([e]);
-    try {const r=await service.handleMessage({...ctx,text}); expect(r.pending!.flags.length).toBeGreaterThan(0); await expect(service.confirm({...ctx,pendingId:r.pending!.id})).rejects.toThrow(); expect(store.events('a')).toHaveLength(0);} finally {store.close();}
+    try {const r=await service.handleMessage({...ctx,text}); expect(r.pending!.flags.length).toBeGreaterThan(0); expect(r.pending!.clarifications?.[0].question).toBe(r.pending!.flags[0]); await expect(service.confirm({...ctx,pendingId:r.pending!.id})).rejects.toThrow(); expect(store.events('a')).toHaveLength(0);} finally {store.close();}
   }
 });
 it('records separately quoted sale and payment together', async () => {

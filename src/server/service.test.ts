@@ -81,6 +81,19 @@ it('shows negative daily sales when a previous-day sale is reversed today', asyn
     expect((await service.handleMessage({ ...ctx, text:'summary' })).replyText).toContain('sales -₦100.00');
   } finally { clock.mockRestore(); }
 });
+it('uses Lagos midnight for daily summary', async () => {
+  const clock = vi.spyOn(Date, 'now');
+  try {
+    clock.mockReturnValue(Date.parse('2030-01-01T22:30:00Z'));
+    const first = store.propose({ownerId:'a',channel:'web',senderId:'session',idempotencyKey:'before',rawInput:'synthetic',entries:[{kind:'sale',customerId:'c',amountKobo:100}]});
+    store.confirm('a',first.id,'web','session');
+    clock.mockReturnValue(Date.parse('2030-01-01T23:30:00Z'));
+    const second = store.propose({ownerId:'a',channel:'web',senderId:'session',idempotencyKey:'after',rawInput:'synthetic',entries:[{kind:'sale',customerId:'c',amountKobo:200}]});
+    store.confirm('a',second.id,'web','session');
+    response = call('daily_summary', {});
+    expect((await service.handleMessage({...ctx,text:'summary'})).replyText).toContain('Today (Lagos): sales ₦2.00');
+  } finally {clock.mockRestore();}
+});
 it('does not choose arbitrarily when a name collides with another alias', () => {
   store.sqlite.exec("INSERT INTO customers VALUES ('other','a','Another'); INSERT INTO customer_aliases VALUES ('a','other','Ada Example');");
   expect(store.findCustomer('a', 'Ada Example')).toBeUndefined();

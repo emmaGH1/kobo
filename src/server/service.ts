@@ -19,7 +19,7 @@ const format = (n: number) => `${n < 0 ? '-' : ''}₦${Math.floor(Math.abs(n) / 
 function review(p: Pending, store: LedgerStore): MessageReply {
   const customers = store.customers(p.ownerId);
   const summary = p.entries.map(e => `${e.kind}: ${e.kind === 'purchase' ? e.description ?? 'unknown stock' : customers.find(c => c.id === e.customerId)?.name ?? (e.customerName ? `${e.customerName} (new customer)` : 'unknown customer')} — ${e.amountKobo ? format(e.amountKobo) : 'unknown amount'}${e.dueDate ? `, due ${e.dueDate}` : ''}${e.calculatedFromBalance ? ' (calculated as sale total minus stated unpaid amount)' : ''}`).join('\n');
-  return { replyText: `${summary}\n${p.flags.length ? `Resolve: ${p.flags.join('; ')}\n` : ''}${CONFIRMATION_PROMPT}`, pending: { id: p.id, summary, flags: p.flags } };
+  return { replyText: `${summary}\n${p.flags.length ? `Please clarify before saving: ${p.flags.join('; ')}\nChoose 2 to edit and send the complete corrected details.\n` : ''}${CONFIRMATION_PROMPT}`, pending: { id: p.id, summary, flags: p.flags, ...(p.flags.length ? { clarifications: p.flags.map(question => ({question})) } : {}) } };
 }
 /** Deliberately narrow deterministic grammar. Model output alone never clears transaction ambiguity. */
 function independentlyMatched(text: string, kind: string, name: string | null, amount: string | null): boolean {
@@ -57,7 +57,7 @@ export class Service implements BookkeepingService {
     const call = parseToolResponse(response);
     if (call.name === 'list_debtors') {
       const rows = debtors(this.store.events(this.ownerId), this.store.customers(this.ownerId));
-      return { replyText: rows.length ? rows.map(c => `${c.name}: ${format(c.balanceKobo)}`).join('\n') : 'No debtors.' };
+      return { replyText: rows.length ? rows.map(c => `${c.name}: ${format(c.balanceKobo)}`).join('\n') : 'Nobody owes you right now.' };
     }
     if (call.name === 'get_balance') {
       const c = this.store.findCustomer(this.ownerId, call.args.customer_name);

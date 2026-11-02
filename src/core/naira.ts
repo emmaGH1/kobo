@@ -25,6 +25,8 @@ export function parseNaira(span: string, source: string): NairaResult {
     const kobo = (whole * BigInt(100) + frac) * multiplier;
     return kobo > BigInt(0) && kobo <= BigInt(Number.MAX_SAFE_INTEGER) ? { kind: 'amount', kobo: Number(kobo) } : invalid;
   }
+  const numericScale = /^(\d+)\s+(thousand|million)$/.exec(s);
+  if (numericScale) return asKobo(BigInt(numericScale[1]) * (numericScale[2] === 'million' ? BigInt(1000000) : BigInt(1000)));
   s = s.replaceAll('-', ' ').replace(/\band\b/g, ' ').replace(/\s+/g, ' ').trim();
   const tokens = s.split(' ');
   let total = 0, group = 0, last = 0;

@@ -4,7 +4,7 @@ import { parseNaira, sourceHasSpan } from './naira';
 describe('stated naira parsing', () => {
   it.each([
     ['₦45,000', 4500000], ['1.5k', 150000], ['2m', 200000000],
-    ['twenty thousand', 2000000], ['forty-five thousand', 4500000],
+    ['twenty thousand', 2000000], ['20 thousand naira', 2000000], ['2 million', 200000000], ['forty-five thousand', 4500000],
     ['one hundred and twenty naira', 12000], ['38.50', 3850],
   ])('parses %s as integer kobo', (s, kobo) => {
     expect(parseNaira(s, `Paid ${s} today`)).toEqual({ kind: 'amount', kobo });
