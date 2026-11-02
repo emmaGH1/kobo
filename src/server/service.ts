@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Reminders } from './reminders';
 import { add, balances, dailySummary, debtors, history, lastPaidAt, owingDays, type Customer } from '../core/ledger';
 import { parseNaira, sourceHasSpan } from '../core/naira';
 import { type BookkeepingService, type MessageReply, type PendingActionInput, type EditPendingInput, type MessageInput, type ClarificationInput, type InteractiveInput } from '../core/contract';
@@ -256,6 +257,16 @@ export class Service implements BookkeepingService {
     if (current.length > 1) return { replyText: copy.errors.twoDrafts(lang) };
     const p = current[0];
     if (/^help$/i.test(text)) return { replyText: copy.help(lang) };
+    if (/^(send|stop) reminders$/i.test(text)) {
+      const enabled=/^send/i.test(text);new Reminders(this.store).opt(this.ownerId,input.channel,input.senderId,enabled);
+      return {replyText:enabled?copy.pick(lang,'Due reminders turned on. WhatsApp delivery requires an approved template and connected adapter.','I don turn due reminders on. WhatsApp delivery still need approved template and connected adapter.'):copy.pick(lang,'Due reminders turned off.','I don stop due reminders.')};
+    }
+    if (/^reminders$/i.test(text)) {
+      const reminders=new Reminders(this.store);reminders.tick(Date.now(),{owner:this.ownerId,channel:input.channel,sender:input.senderId});
+      const next=reminders.queued(this.ownerId,input.channel,input.senderId,lang)[0];
+      if(next){reminders.markPresented(this.ownerId,input.channel,input.senderId,next.id);return next.reply;}
+      return {replyText:copy.pick(lang,'No due reminders waiting.','No due reminder dey wait.')};
+    }
     if (p && p.status === 'review' && !COMMAND_WORDS.test(text)) {
       const answered = this.answer(p, text, input, lang);
       if (answered) return answered;
@@ -394,6 +405,20 @@ export class Service implements BookkeepingService {
     const lang = this.storedLanguage(input.channel, input.senderId);
     const id = input.id;
     if (id === 'query:debtors') return this.debtorsReply(lang);
+    const reminder = new RegExp(`^reminder:(${UUID}):(draft|paid|later)$`).exec(id);
+    if(reminder) {
+      const manager=new Reminders(this.store),f=manager.facts(this.ownerId,input.channel,input.senderId,reminder[1]);
+      if(!f) return {replyText:copy.pick(lang,'That reminder is no longer available.','That reminder no dey again.')};
+      if(reminder[2]==='draft') return manager.reply(this.ownerId,input.channel,input.senderId,reminder[1],lang,true)!;
+      if(reminder[2]==='later'){manager.later(this.ownerId,input.channel,input.senderId,reminder[1]);return {replyText:copy.pick(lang,'I will remind you again in one day.','I go remind you again in one day.')};}
+      const current=this.store.current(this.ownerId,input.channel,input.senderId);
+      if(current.length) return render(current[0],this.store,lang);
+      const draft:PendingDraft={ownerId:this.ownerId,channel:input.channel,senderId:input.senderId,idempotencyKey:`reminder-paid:${reminder[1]}`,rawInput:`Payment amount requested for ${f.name}`,entries:[{kind:'payment',customerId:f.debt.customerId,amountQuestion:{candidatesKobo:[],flag:'Please clarify the stated amount.'}}],flags:['Please clarify the stated amount.']};
+      // A tap is not a payment: ask the amount, then separately confirm the replacement review.
+      const proposed=this.store.propose(draft);
+      if(proposed.status!=='review'||proposed.expiresAt<=Date.now())return {replyText:copy.errors.nothingPending(lang)};
+      return render(proposed,this.store,lang);
+    }
     const customerId = new RegExp(`^customer:(${UUID})$`).exec(id)?.[1];
     if (customerId) {
       const customer = this.store.customers(this.ownerId).find(c => c.id === customerId);

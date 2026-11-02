@@ -8,6 +8,8 @@ export interface LedgerEvent {
   reversalOf?: string;
   dueDate?: string | null;
   occurredAt: number;
+  /** Confirmed proposal batch; payments in a sale's own batch apply to that sale first. */
+  batchId?: string;
 }
 export interface Customer { id: string; ownerId: string; name: string }
 
@@ -58,6 +60,26 @@ export function dailySummary(events: readonly LedgerEvent[], start: number, end:
     if (source.kind === 'payment') collectionsKobo = add(collectionsKobo, amount);
   }
   return { salesKobo, collectionsKobo };
+}
+
+/** Current unpaid principal by debt entry. Same-batch partial payments first; other payments FIFO.
+ * Reversed events are excluded. This allocation is deterministic policy, not model inference.
+ */
+export function outstandingDebts(events: readonly LedgerEvent[]) {
+  const undone = new Set(events.filter(e=>e.kind==='reversal').map(e=>e.reversalOf));
+  const active = events.filter(e=>e.kind!=='reversal' && !undone.has(e.id));
+  const debts = active.filter(e=>e.kind==='sale'||e.kind==='opening_debt').map(e=>({...e,remainingKobo:money(e.amountKobo)}));
+  for (const payment of active.filter(e=>e.kind==='payment')) {
+    let left = money(payment.amountKobo);
+    const eligible = debts.filter(d=>d.ownerId===payment.ownerId && d.customerId===payment.customerId);
+    const same = payment.batchId ? eligible.filter(d=>d.batchId===payment.batchId) : [];
+    for (const debt of [...same,...eligible.filter(d=>!same.includes(d))]) {
+      const amount = Math.min(left,debt.remainingKobo);
+      debt.remainingKobo -= amount; left -= amount;
+      if (!left) break;
+    }
+  }
+  return debts.filter(d=>d.remainingKobo>0);
 }
 
 export interface HistoryRow {

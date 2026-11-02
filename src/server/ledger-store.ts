@@ -69,7 +69,7 @@ export class LedgerStore {
   }
   events(ownerId: string): LedgerEvent[] {
     return this.sqlite.prepare(`SELECT id,owner_id AS ownerId,customer_id AS customerId,kind,amount_kobo AS amountKobo,
-      reversal_of AS reversalOf,due_date AS dueDate,occurred_at AS occurredAt FROM ledger_events WHERE owner_id=? ORDER BY occurred_at,rowid`).all(ownerId) as LedgerEvent[];
+      reversal_of AS reversalOf,due_date AS dueDate,pending_id AS batchId,occurred_at AS occurredAt FROM ledger_events WHERE owner_id=? ORDER BY occurred_at,rowid`).all(ownerId) as LedgerEvent[];
   }
   spent(ownerId: string, start: number, end: number): number {
     const rows = this.sqlite.prepare('SELECT amount_kobo AS amount FROM stock_purchases WHERE owner_id=? AND occurred_at>=? AND occurred_at<?').all(ownerId, start, end) as {amount:number}[];

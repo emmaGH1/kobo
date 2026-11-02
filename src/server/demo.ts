@@ -1,5 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { outstandingDebts } from '../core/ledger';
+import { Reminders } from './reminders';
 import type { MessageReply } from '../core/contract';
 import { LedgerStore } from './ledger-store';
 import { createModelProvider, type ModelProvider } from './model-provider';
@@ -43,6 +45,9 @@ export function createDemoHandler(options: DemoOptions) {
     store.seedConfirmed(owner, Date.now() - 14 * 86400000, 'Fictional demo opening debt', [{customerId:chidi,kind:'opening_debt',amountKobo:1350000}]);
     store.seedConfirmed(owner, Date.now() - 9 * 86400000, 'Fictional demo payment', [{customerId:chidi,kind:'payment',amountKobo:500000}]);
     store.seedConfirmed(owner, Date.now() - 2 * 86400000, 'Fictional demo opening debt', [{customerId:bayo,kind:'opening_debt',amountKobo:2800000}]);
+    const d = new Date(Date.now()+3600000);
+    const nextFriday = new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()+((5-d.getUTCDay()+7)%7||7))).toISOString().slice(0,10);
+    store.seedConfirmed(owner,Date.now()-86400000,'Fictional demo credit sale and partial payment',[{customerId:chidi,kind:'sale',amountKobo:4500000,dueDate:nextFriday},{customerId:chidi,kind:'payment',amountKobo:2000000}]);
     return owner;
   }
   const limited = () => NextResponse.json({ reason:'demo_limit', replies:[], remaining:0, limited:true }, {status:429});
@@ -98,6 +103,16 @@ export function createDemoHandler(options: DemoOptions) {
     }
     if (!s) return json({error:'Demo session required'},401);
     if (operation === 'voice-sample') return json({error:'No consented server-owned voice sample is configured',reason:'unavailable'},503);
+    if (operation === 'skip-friday') {
+      const debts=outstandingDebts(store.events(s.owner)).filter(d=>d.dueDate).sort((a,b)=>a.dueDate!.localeCompare(b.dueDate!));
+      if(!debts.length) return json({replies:[],remaining:DEMO_LIMIT-s.used,simulated:true});
+      const now=Date.parse(`${debts[0].dueDate}T07:00:00Z`);
+      const reminders=new Reminders(store);
+      reminders.tick(now,{owner:s.owner,channel:'web',sender:s.token},true);
+      const lang=store.language(s.owner,'web',s.token)?.language??'en';
+      const queued=reminders.queued(s.owner,'web',s.token,lang);
+      return json({replies:queued.map(q=>({lang:lang==='pg'?'pcm':'en',kind:'buttons',body:q.reply.replyText,buttons:q.reply.interactive?.buttons})),remaining:DEMO_LIMIT-s.used,simulated:true,simulatedAt:now});
+    }
     if (!['message','action'].includes(operation)) return json({error:'Not found'},404);
     if (operation === 'message' && (typeof body.text !== 'string' || !body.text.trim() || body.text.length>4000)) return json({error:'Invalid text'},400);
     if (operation === 'action' && (typeof body.action !== 'string' || body.action.length>300)) return json({error:'Invalid action'},400);

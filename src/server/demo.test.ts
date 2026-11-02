@@ -19,7 +19,7 @@ it('creates a fresh fictional book per cookie, reuses it until expiry and enforc
   const {store,call,start,cookie}=setup(); const a=await start(),b=await start();
   const owners=store.sqlite.prepare('SELECT owner FROM demo_sessions').all() as {owner:string}[];
   expect(new Set(owners.map(o=>o.owner)).size).toBe(2);
-  for(const o of owners) {expect(store.customers(o.owner).map(c=>c.name)).toEqual(['Bayo','Mama Chidi']);expect(store.events(o.owner)).toHaveLength(3);}
+  for(const o of owners) {expect(store.customers(o.owner).map(c=>c.name)).toEqual(['Bayo','Mama Chidi']);expect(store.events(o.owner)).toHaveLength(5);}
   expect((await call('session',{},cookie(a))).headers.get('set-cookie')).toBeNull();
   expect((await call('message',{text:'who owes me'},cookie(a),'one','https://evil.test')).status).toBe(403);
   expect((await call('message',{text:'who owes me'},cookie(b))).status).toBe(200);
@@ -39,6 +39,13 @@ it('routes reviews and explicit actions to the same service; rejects foreign and
   expect(store.sqlite.prepare('SELECT COUNT(*) AS n FROM ledger_events WHERE pending_id=?').get(id)).toEqual({n:1});
   const response=await (await call('message',{text:'1'},a)).json();
   expect(response.remaining).toBe(12); // deterministic commands and actions consume no model credits
+});
+it('previews Friday reminders using the demo book without saving money or spending model credits',async()=>{
+  const {store,call,start,cookie,requestToolResponse}=setup();const c=cookie(await start());
+  const before=(store.sqlite.prepare('SELECT COUNT(*) AS n FROM ledger_events').get() as {n:number}).n;
+  const preview=await (await call('skip-friday',{},c)).json();expect(preview.simulated).toBe(true);expect(preview.remaining).toBe(12);expect(preview.replies[0].body).toContain('₦25,000');
+  const draft=await (await call('action',{action:preview.replies[0].buttons[0].id},c)).json();expect(draft.replyText).toContain('Nothing goes out without you.');
+  expect((store.sqlite.prepare('SELECT COUNT(*) AS n FROM ledger_events').get() as {n:number}).n).toBe(before);expect(requestToolResponse).not.toHaveBeenCalled();
 });
 it('reserves only actual model calls, blocks the thirteenth, and still permits read queries and save/cancel',async()=>{
   const {call,start,cookie,requestToolResponse}=setup(); const c=cookie(await start());

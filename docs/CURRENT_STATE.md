@@ -16,6 +16,9 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Ordered continuation checkpoint 3
+Due-day 08:00 Lagos persistent outbox, opt-in/out, stable reminder IDs, unsent drafts, amount-first Already paid review and one-day snooze implemented. Same-batch partial payments allocated before FIFO payments; settled/reversed debts suppressed. Token-authenticated `/api/reminders/tick` queues jobs only: external scheduler, approved utility template and WhatsApp delivery are NOT configured or live-tested. Demo `/api/demo/skip-friday` simulates next due-day notice without advancing global time or model calls. 103 offline tests passed, 1 live skipped; typecheck/lint/build passed. See HANDOVER for delivery limits and configuration.
+
 ### Ordered continuation checkpoint 2
 Recorded Lagos civil-day debt age and last-paid memory now appear in customer history/debtor list rows. Partial payment keeps age, clearing/reborrowing resets; no inferred overdue claims. Numeric Pidgin payment clauses create explicit reviews without model calls; close names remain blocked for choice. 98 offline tests passed, 1 live skipped; typecheck/lint/build passed. No paid calls/native-speaker validation.
 

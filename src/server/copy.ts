@@ -17,7 +17,7 @@ export function formatNaira(kobo: number): string {
   return `${kobo < 0 ? '-' : ''}₦${whole}${fraction ? `.${String(fraction).padStart(2, '0')}` : ''}`;
 }
 const bold = (s: string) => `*${s}*`;
-const pick = <T,>(lang: Language, en: T, pg: T): T => (lang === 'pg' ? pg : en);
+export const pick = <T,>(lang: Language, en: T, pg: T): T => (lang === 'pg' ? pg : en);
 
 // Confident Pidgin markers only. Anything unsure is English (section 4 general rules).
 const PIDGIN = /\b(dey|wetin|abeg|wahala|wey|una|sabi|comot|pikin|nawa|abi|oya|biko|sef)\b|\b(?:e|i|im|dem) (?:don|no|go|dey)\b|\bmake i\b|\bna so\b|\bhow far\b|\b(?:pay|owe|carry|collect|give|buy|write|save) am\b/i;
@@ -191,6 +191,17 @@ export const balanceText = (l: Language, name: string, balance: number) =>
 export function customerMemory(l: Language, balance: number, days?: number, paid?: number): string {
   const age = balance > 0 && days !== undefined ? pick(l, `Owing for ${days} ${days===1?'day':'days'} in this book`, `E don owe for ${days} ${days===1?'day':'days'} for this book`) : pick(l,'No unpaid balance','No debt remain');
   return `${age}${paid===undefined?'':pick(l, ` · last paid ${lagosDay(paid)}`, ` · last pay ${lagosDay(paid)}`)}`;
+}
+
+// ---- 4.10 / 4.11 reminders (generic purchase wording: item data isn't always recorded) ----
+export function dueReminder(l:Language,name:string,amount:number,total:number,date:string,at:number):string {
+  const day=lagosDayWithWeekday(Date.parse(`${date}T07:00:00Z`));
+  const when = new Date(Date.now()+3600000).toISOString().slice(0,10)===date ? 'today' : `on ${day}`;
+  return [pick(l,`*Reminder* · ${day}`,`*Reminder* · ${day}`),pick(l,`${name} is due to pay *${formatNaira(amount)}* ${when}, for the credit purchase recorded on ${lagosDay(at)}.`,`${name} suppose pay *${formatNaira(amount)}* ${when}, for wetin e carry wey enter book on ${lagosDay(at)}.`),pick(l,`They still owe you *${formatNaira(total)}* in total.`,`E still owe you *${formatNaira(total)}* for total.`),'',pick(l,'Kobo never messages your customers itself.','Kobo no dey message your customers by itself.')].join('\n');
+}
+export function draftedReminder(l:Language,name:string,amount:number,date:string):string {
+  // Do not invent a shop name or description that the ledger does not hold.
+  return [pick(l,`Copy this and send it to ${name}:`,`Copy am send to ${name}:`),pick(l,`> Good morning ${name}. A small reminder that the ${formatNaira(amount)} balance for your credit purchase was due on ${lagosDay(Date.parse(`${date}T07:00:00Z`))}. Thank you.`,`> Good morning ${name}. Small reminder say the ${formatNaira(amount)} balance for wetin you carry dey due on ${lagosDay(Date.parse(`${date}T07:00:00Z`))}. Thank you, God bless.`),'',pick(l,'You send it. Nothing goes out without you.','Na you go send am. Nothing go out without you.')].join('\n');
 }
 
 // ---- 4.7 errors and edge states ----
