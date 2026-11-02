@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { add, balances, dailySummary, debtors, type Customer } from '../core/ledger';
+import { add, balances, dailySummary, debtors, history, type Customer } from '../core/ledger';
 import { parseNaira, sourceHasSpan } from '../core/naira';
 import { type BookkeepingService, type MessageReply, type PendingActionInput, type EditPendingInput, type MessageInput, type ClarificationInput, type InteractiveInput } from '../core/contract';
 import { LedgerStore, validDueDate, type EntryDraft, type Pending, type PendingDraft } from './ledger-store';
@@ -155,6 +155,50 @@ export class Service implements BookkeepingService {
     const rows = debtors(this.store.events(this.ownerId), this.store.customers(this.ownerId)).map(c => ({ name: c.name, balance: c.balanceKobo }));
     return { replyText: copy.debtorsText(lang, rows) };
   }
+  /** Lagos civil day containing `now`: [start, end) in UTC milliseconds. Lagos is UTC+01:00 all year. */
+  private lagosDay(now = Date.now()) {
+    const lagos = new Date(now + 3600000);
+    const start = Date.UTC(lagos.getUTCFullYear(), lagos.getUTCMonth(), lagos.getUTCDate()) - 3600000;
+    return { start, end: start + 86400000 };
+  }
+  /** Design 4.12. Every figure is calculated by code from the owner's ledger. */
+  private summaryReply(lang: Language): MessageReply {
+    const { start, end } = this.lagosDay();
+    const events = this.store.events(this.ownerId);
+    const totals = dailySummary(events, start, end);
+    const rows = debtors(events, this.store.customers(this.ownerId));
+    const body = copy.summaryText(lang, {
+      at: start, entries: events.filter(e => e.occurredAt >= start && e.occurredAt < end).length + this.store.purchaseCount(this.ownerId, start, end),
+      creditKobo: totals.salesKobo, collectedKobo: totals.collectionsKobo, stockKobo: this.store.spent(this.ownerId, start, end),
+      owedKobo: rows.reduce((t, r) => add(t, r.balanceKobo), 0), biggest: rows[0] && { name: rows[0].name, balance: rows[0].balanceKobo },
+    });
+    return { replyText: body, interactive: { kind: 'buttons', body, buttons: copy.summaryButtons(lang) } };
+  }
+  /** Design 4.5. Read-only; the running balance column is calculated by code. */
+  private historyReply(customer: Customer, lang: Language): MessageReply {
+    const events = this.store.events(this.ownerId);
+    const refs = this.store.eventRefs(this.ownerId);
+    const rows = history(events, customer.id);
+    const balance = rows.length ? rows[rows.length - 1].balanceKobo : 0;
+    const body = copy.historyText(lang, customer.name, balance, rows.map(r => ({ at: r.occurredAt, kind: r.kind, amount: r.amountKobo, balance: r.balanceKobo, ...(r.reversalOf && refs.has(r.reversalOf) ? { undoes: copy.refLabel(refs.get(r.reversalOf)!) } : {}) })));
+    return { replyText: body, interactive: { kind: 'buttons', body, buttons: [copy.button('query:debtors', copy.whoOwesLabel(lang))] } };
+  }
+  /** Exact name or alias first; otherwise every customer whose name contains the typed words. */
+  private lookupCustomers(typed: string): Customer[] {
+    const exact = this.store.findCustomer(this.ownerId, typed);
+    if (exact) return [exact];
+    const words = typed.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    return this.store.customers(this.ownerId).filter(c => words.every(w => c.name.toLocaleLowerCase().split(/[\s()]+/).some(n => n.startsWith(w))));
+  }
+  private historyFor(typed: string, lang: Language): MessageReply {
+    const found = this.lookupCustomers(typed.trim());
+    if (found.length === 1) return this.historyReply(found[0], lang);
+    if (!found.length) return { replyText: lang === 'pg' ? 'I no see that customer.' : 'Customer not found.' };
+    const bal = balances(this.store.events(this.ownerId));
+    const rows = found.slice(0, 10).map(c => ({ id: `customer:${c.id}`, title: c.name.length <= 24 ? c.name : `${c.name.slice(0, 23)}…`, description: copy.owesDescription(lang, bal[c.id] ?? 0) }));
+    const body = copy.whichCustomer(lang, typed.trim());
+    return { replyText: `${body}\n${found.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}`, interactive: { kind: 'list', body, listButton: copy.pickLabel(lang), rows } };
+  }
   private replace(p: Pending, input: { channel: string; senderId: string }, text: string, clarification: string, entries: EntryDraft[], flags: string[], lang: Language): MessageReply {
     const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: `${p.rawInput}\nClarification: ${clarification}`, entries, flags };
     return render(this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft), this.store, lang);
@@ -219,6 +263,11 @@ export class Service implements BookkeepingService {
       return this.cancel(action);
     }
     if (/^(who dey owe me|who owes? me|debtors)\??$/i.test(text)) return this.debtorsReply(lang);
+    if (!p || p.status === 'editing') {
+      if (/^(?:how market(?: today)?|day summary|daily summary|summary|my book today)\??$/i.test(text)) return this.summaryReply(lang);
+      const who = /^(?:show me\s+)?(.+?)\s+(?:full\s+)?(?:history|book)$/i.exec(text)?.[1] ?? /^(?:show me\s+)?(?:full\s+)?history\s+(?:of\s+|for\s+)?(.+)$/i.exec(text)?.[1];
+      if (who) return this.historyFor(who.replace(/^(?:me\s+)/i, ''), lang);
+    }
     if (p && p.status !== 'editing') return render(p, this.store, lang);
     // An exact, explicit command does not need a model to reinterpret it.
     const purchase = /^stock purchase\s*:\s*([^:\n]+?)\s*:\s*(\d+(?:\.\d{1,2})?)\s*$/i.exec(text);
@@ -240,12 +289,7 @@ export class Service implements BookkeepingService {
       if (!c) return { replyText: lang === 'pg' ? 'I no see that customer.' : 'Customer not found.' };
       return { replyText: copy.balanceText(lang, c.name, balances(this.store.events(this.ownerId))[c.id] ?? 0) };
     }
-    if (call.name === 'daily_summary') {
-      // Lagos is UTC+01:00 year-round; select its civil day, not the server's day.
-      const now = new Date(Date.now() + 3600000); const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - 3600000;
-      const result = dailySummary(this.store.events(this.ownerId), start, start + 86400000);
-      return { replyText: `Today (Lagos): sales ${formatNaira(result.salesKobo)}, collections ${formatNaira(result.collectionsKobo)}, stock spent ${formatNaira(this.store.spent(this.ownerId, start, start + 86400000))}` };
-    }
+    if (call.name === 'daily_summary') return this.summaryReply(lang);
     if (call.name === 'record_entries') {
       const flags: string[] = [];
       if (/\b(ignore|override|system prompt|developer message|do not ask|without confirmation)\b/i.test(text)) flags.push('Please edit and provide only the transaction details.');
@@ -322,6 +366,11 @@ export class Service implements BookkeepingService {
     const lang = this.storedLanguage(input.channel, input.senderId);
     const id = input.id;
     if (id === 'query:debtors') return this.debtorsReply(lang);
+    const customerId = new RegExp(`^customer:(${UUID})$`).exec(id)?.[1];
+    if (customerId) {
+      const customer = this.store.customers(this.ownerId).find(c => c.id === customerId);
+      return customer ? this.historyReply(customer, lang) : { replyText: lang === 'pg' ? 'I no see that customer.' : 'Customer not found.' };
+    }
     const simple = new RegExp(`^(save|edit|cancel):(${UUID})$`).exec(id);
     const answer = new RegExp(`^answer:(${UUID}):([1-9]\\d?)$`).exec(id);
     const target = simple?.[2] ?? answer?.[1];

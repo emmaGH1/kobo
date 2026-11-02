@@ -59,3 +59,46 @@ export function dailySummary(events: readonly LedgerEvent[], start: number, end:
   }
   return { salesKobo, collectionsKobo };
 }
+
+export interface HistoryRow {
+  id: string;
+  /** `reversal` rows keep the kind of the entry they undo in `sourceKind`. */
+  kind: EventKind;
+  sourceKind: 'sale' | 'payment' | 'opening_debt';
+  amountKobo: number;
+  occurredAt: number;
+  /** What the customer owes right after this entry, calculated by code. Negative means credit. */
+  balanceKobo: number;
+  reversalOf?: string;
+}
+/** One customer's entries oldest first, each with the running balance. Display data; the ledger is untouched. */
+export function history(events: readonly LedgerEvent[], customerId: string): HistoryRow[] {
+  let running = 0;
+  const rows: HistoryRow[] = [];
+  for (const event of events) {
+    if (event.customerId !== customerId) continue;
+    const source = original(event, events);
+    const signed = (source.kind === 'payment' ? -1 : 1) * (event.kind === 'reversal' ? -1 : 1) * money(event.amountKobo);
+    running = add(running, signed);
+    rows.push({ id: event.id, kind: event.kind, sourceKind: source.kind as HistoryRow['sourceKind'], amountKobo: event.amountKobo, occurredAt: event.occurredAt, balanceKobo: running, ...(event.reversalOf ? { reversalOf: event.reversalOf } : {}) });
+  }
+  return rows;
+}
+/**
+ * When a customer's current debt began: the time of the entry that last moved their balance from
+ * zero (or credit) to owing. Partial payments do not reset it. Undefined when they owe nothing.
+ */
+export function owingSince(events: readonly LedgerEvent[], customerId: string): number | undefined {
+  let since: number | undefined;
+  let previous = 0;
+  for (const row of history(events, customerId)) {
+    if (row.balanceKobo > 0 && previous <= 0) since = row.occurredAt;
+    previous = row.balanceKobo;
+  }
+  return previous > 0 ? since : undefined;
+}
+/** Time of the most recent payment that has not been reversed. */
+export function lastPaidAt(events: readonly LedgerEvent[], customerId: string): number | undefined {
+  const undone = new Set(events.filter(e => e.kind === 'reversal' && e.reversalOf).map(e => e.reversalOf));
+  return events.filter(e => e.customerId === customerId && e.kind === 'payment' && !undone.has(e.id)).reduce<number | undefined>((latest, e) => (latest === undefined || e.occurredAt > latest ? e.occurredAt : latest), undefined);
+}

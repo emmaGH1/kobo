@@ -131,6 +131,57 @@ export function debtorsText(l: Language, rows: { name: string; balance: number }
   const people = pick(l, `${rows.length} ${rows.length === 1 ? 'person' : 'people'}`, `${rows.length} ${rows.length === 1 ? 'person' : 'people'}`);
   return [`${bold(pick(l, 'Who owes you', 'Who dey owe you'))} · ${people}`, `Total: ${bold(formatNaira(total))}`, '', ...rows.map((r, i) => `${i + 1}. ${r.name} · ${bold(formatNaira(r.balance))}`), '', pick(l, '_Largest first. Totals come from your saved entries._', '_Biggest first. Total na from your saved entries._')].join('\n');
 }
+// ---- 4.5 customer history ----
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** `24 Oct` in Lagos. */
+export function lagosDay(ms: number): string {
+  const d = new Date(ms + 3600000);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+/** `Mon 2 Nov` in Lagos. */
+export function lagosDayWithWeekday(ms: number): string {
+  return `${WEEKDAYS[new Date(ms + 3600000).getUTCDay()]} ${lagosDay(ms)}`;
+}
+export interface HistoryLine { at: number; kind: 'sale' | 'payment' | 'opening_debt' | 'reversal'; amount: number; balance: number; /** Reference of the undone entry, for a reversal. */ undoes?: string }
+const grouped = (kobo: number) => formatNaira(Math.abs(kobo)).replace('₦', '');
+/** Section 4.5: newest first, at most 8 rows, monospace block 29 characters wide for normal amounts. */
+export function historyText(l: Language, name: string, balance: number, lines: HistoryLine[]): string {
+  const head = balance > 0 ? `${bold(name)} · ${pick(l, 'owes', 'owe')} ${bold(formatNaira(balance))}`
+    : balance === 0 ? `${bold(name)} · ${pick(l, 'owes nothing', 'e don clear')}`
+    : `${bold(name)} · ${pick(l, 'has credit', 'get credit')} ${bold(formatNaira(-balance))}`; // credit wording not in design
+  const label = (k: HistoryLine['kind']) => k === 'payment' ? 'paid' : k === 'sale' ? 'credit' : k === 'opening_debt' ? 'old' : 'fix'; // "old" for opening debt is not in design
+  const shown = lines.slice(-8).reverse();
+  if (!shown.length) return `${head}
+
+${pick(l, '_No entries yet._', '_Nothing dey inside yet._')}`; // not in design
+  const rows = shown.map(r => `${lagosDay(r.at).padEnd(6)} ${label(r.kind).padEnd(6)}${grouped(r.amount).padStart(8)}${grouped(r.balance).padStart(8)}`);
+  const fixes = [...new Set(shown.filter(r => r.kind === 'reversal' && r.undoes).map(r => r.undoes!))];
+  const foot = pick(l, `_Last ${shown.length} entries._`, `_Last ${shown.length} entries._`); // design adds a web-book link; none exists yet
+  return [head, '', '```', `${'AMOUNT'.padStart(21)}${'OWES'.padStart(8)}`, ...rows, '```', foot, ...fixes.map(f => `_fix = undo of ${f}_`)].join('\n');
+}
+export const pickLabel = (l: Language) => pick(l, 'See customer', 'See person');
+export const whichCustomer = (l: Language, typed: string) => pick(l, `Which ${typed} do you mean?`, `Which ${typed} you mean?`);
+
+// ---- 4.12 day summary in chat, 4.6 daily template body ----
+export interface DaySummary { at: number; entries: number; creditKobo: number; collectedKobo: number; stockKobo: number; owedKobo: number; biggest?: { name: string; balance: number } }
+export function summaryText(l: Language, s: DaySummary): string {
+  const out = [`${bold(pick(l, 'Your book today', 'Your book today'))} · ${lagosDayWithWeekday(s.at)}`,
+    `- ${pick(l, 'Credit sales', 'Credit sales')}: ${bold(formatNaira(s.creditKobo))}`,
+    `- ${pick(l, 'Money you collected', 'Money wey you collect')}: ${bold(formatNaira(s.collectedKobo))}`,
+    `- ${pick(l, 'Stock you bought', 'Stock wey you buy')}: ${bold(formatNaira(s.stockKobo))}`,
+    pick(l, `People owe you ${bold(formatNaira(s.owedKobo))}`, `People owe you ${bold(formatNaira(s.owedKobo))}`)];
+  if (s.biggest) out.push(`${pick(l, 'Biggest', 'Biggest')}: ${s.biggest.name} · ${bold(formatNaira(s.biggest.balance))}`);
+  out.push('', pick(l, `_From the ${s.entries} ${s.entries === 1 ? 'entry' : 'entries'} you confirmed today._`, `_Na from the ${s.entries} ${s.entries === 1 ? 'entry' : 'entries'} wey you confirm today._`));
+  return out.join('\n');
+}
+/** Section 4.6 body for the Meta utility template. Variables {{1}}..{{5}} are filled with these values. */
+export function summaryTemplateBody(l: Language, s: DaySummary): string {
+  return pick(l,
+    `Your book for ${lagosDayWithWeekday(s.at)}: ${s.entries} entries. Credit given ${formatNaira(s.creditKobo)}, collected ${formatNaira(s.collectedKobo)}. People owe you ${formatNaira(s.owedKobo)} in total.`,
+    `Your book for today, ${lagosDayWithWeekday(s.at)}: ${s.entries} entries. You give credit ${formatNaira(s.creditKobo)}, you collect ${formatNaira(s.collectedKobo)}. People still owe you ${formatNaira(s.owedKobo)}.`);
+}
+export const summaryButtons = (l: Language) => [button('query:debtors', whoOwesLabel(l))];
+
 export const balanceText = (l: Language, name: string, balance: number) =>
   balance > 0 ? `${bold(name)} · ${pick(l, 'owes', 'owe')} ${bold(formatNaira(balance))}`
   : balance === 0 ? `${bold(name)} · ${pick(l, 'owes nothing', 'e don clear')}`

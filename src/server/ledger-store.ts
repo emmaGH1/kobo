@@ -75,6 +75,15 @@ export class LedgerStore {
     const rows = this.sqlite.prepare('SELECT amount_kobo AS amount FROM stock_purchases WHERE owner_id=? AND occurred_at>=? AND occurred_at<?').all(ownerId, start, end) as {amount:number}[];
     return rows.reduce((total, row) => add(total, money(row.amount)), 0);
   }
+  /** Number of stock purchases in a window, for the day summary's entry count. */
+  purchaseCount(ownerId: string, start: number, end: number): number {
+    return (this.sqlite.prepare('SELECT COUNT(*) AS n FROM stock_purchases WHERE owner_id=? AND occurred_at>=? AND occurred_at<?').get(ownerId, start, end) as {n: number}).n;
+  }
+  /** Customer-facing `K-0001` reference numbers of confirmed entries, by event id. */
+  eventRefs(ownerId: string): Map<string, number> {
+    const rows = this.sqlite.prepare(`SELECT e.id AS id, p.confirm_ref AS ref FROM ledger_events e JOIN pending_actions p ON p.id=e.pending_id AND p.owner_id=e.owner_id WHERE e.owner_id=? AND p.confirm_ref IS NOT NULL`).all(ownerId) as {id: string; ref: number}[];
+    return new Map(rows.map(r => [r.id, r.ref]));
+  }
   pending(ownerId: string, id: string): Pending | undefined {
     const row = this.sqlite.prepare('SELECT * FROM pending_actions WHERE owner_id=? AND id=?').get(ownerId, id) as PendingRow | undefined;
     if (!row) return;
@@ -177,6 +186,23 @@ export class LedgerStore {
       balances(this.events(ownerId));
       this.markConfirmed(ownerId, id, now);
       return this.events(ownerId).filter(e => ids.includes(e.id));
+    }).immediate();
+  }
+  /**
+   * Appends already-decided entries as one confirmed batch with an explicit time. Only for seeding a fictional demo
+   * book (and tests); real entries always arrive through propose/confirm. Same ledger tables and triggers apply.
+   */
+  seedConfirmed(ownerId: string, at: number, rawInput: string, entries: { customerId: string; kind: 'sale' | 'payment' | 'opening_debt'; amountKobo: number; dueDate?: string }[]): string[] {
+    return this.sqlite.transaction(() => {
+      const id = randomUUID();
+      this.sqlite.prepare(`INSERT INTO pending_actions(id,owner_id,channel,sender_id,idempotency_key,raw_input,proposal_json,flags_json,status,created_at,expires_at,confirm_ref,confirmed_at)
+        VALUES (?,?,'seed','seed',?,?,'[]','[]','confirmed',?,?,(SELECT COALESCE(MAX(confirm_ref),0)+1 FROM pending_actions WHERE owner_id=?),?)`).run(id, ownerId, randomUUID(), rawInput, at, at, ownerId, at);
+      return entries.map((entry, sequence) => {
+        const eventId = randomUUID();
+        this.sqlite.prepare('INSERT INTO ledger_events (id,owner_id,customer_id,kind,amount_kobo,reversal_of,pending_id,sequence,occurred_at,due_date) VALUES (?,?,?,?,?,NULL,?,?,?,?)').run(eventId, ownerId, entry.customerId, entry.kind, money(entry.amountKobo), id, sequence, at, entry.dueDate ?? null);
+        this.sqlite.prepare('INSERT INTO evidence(id,owner_id,event_id,transcript,audio_path) VALUES(?,?,?,?,NULL)').run(randomUUID(), ownerId, eventId, rawInput);
+        return eventId;
+      });
     }).immediate();
   }
   /** Sequential per-owner reference, assigned once inside the confirming transaction so retries show the same one. */

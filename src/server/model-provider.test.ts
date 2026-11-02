@@ -39,8 +39,15 @@ describe('Responses provider boundary (mocked transport, not live verification)'
     expect(await provider.requestToolResponse({input:'Fictional test',tools:[tool]})).toEqual(fixture);
     expect(transport.mock.calls[0][0]).toBe('https://provider.example/v1/responses');
     const body = JSON.parse(transport.mock.calls[0][1]!.body as string);
-    expect(body).toEqual({model:config.modelId,input:[{role:'user',content:'Fictional test'}],tools:[tool],tool_choice:'auto',max_output_tokens:1024,store:false});
+    expect(body).toEqual({model:config.modelId,input:[{role:'user',content:'Fictional test'}],tools:[tool],tool_choice:'auto',max_output_tokens:4096,store:false});
     expect(body.tools[0].function).toBeUndefined();
+  });
+  it('retries once with a larger output cap when the response is cut off before a tool call', async () => {
+    const done = {status:'completed',output:[{type:'function_call',name:'list_debtors',arguments:'{}'}]};
+    const transport = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(JSON.stringify({status:'incomplete',output:[]}))).mockResolvedValueOnce(new Response(JSON.stringify(done)));
+    expect(await new ResponsesModelProvider(config,transport).requestToolResponse({input:'Fictional test',tools:[tool]})).toEqual(done);
+    expect(transport).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(transport.mock.calls[1][1]!.body as string).max_output_tokens).toBe(8192);
   });
   it('rejects invalid requests before making any calls', async () => {
     const transport = fakeFetch({});
@@ -49,7 +56,7 @@ describe('Responses provider boundary (mocked transport, not live verification)'
     await expect(provider.requestToolResponse({input:'test',tools:[]})).rejects.toThrow('Invalid tool response request');
     expect(transport).not.toHaveBeenCalled();
   });
-  it('preserves exact HTTP/code/detail for operator diagnostics and never retries', async () => {
+  it('preserves exact HTTP/code/detail for operator diagnostics and never retries HTTP errors', async () => {
     const transport = fakeFetch({error:{code:'model_not_found',message:'The requested model was not found.'}},404);
     try {
       await new ResponsesModelProvider(config,transport).requestToolResponse({input:'Fictional test',tools:[tool]});
