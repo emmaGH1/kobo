@@ -58,6 +58,8 @@
     --lav-ink: #3D52A0;
     --paid: #2F6B48;
     --owed: #A63D2A;
+    /* The page's one easing curve. Every motion uses it. */
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
     /* shadcn variables mapped onto the Kobo palette */
     --background: var(--paper);
@@ -112,12 +114,13 @@ html { font-family: var(--font-serif); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .msg-in { animation: msg-in 160ms ease-out both; }
-  .kmark { animation: kmark 650ms cubic-bezier(.2,.7,.2,1) both; }
-  .kmark-full { animation: kmark-full 650ms cubic-bezier(.2,.7,.2,1) both; }
+  .msg-in { animation: msg-in 160ms var(--ease) both; }
+  .kmark { animation: kmark 600ms var(--ease) both; }
+  .kmark-full { animation: kmark-full 600ms var(--ease) both; }
   .wave-play { animation: wave-fill 2.6s linear both; }
   .typing-dot { animation: typing 1s ease-in-out infinite; }
-  .book-row { animation: book-row 900ms ease-out both; }
+  .book-row { animation: book-row 900ms var(--ease) both; }
+  .book-row[data-landing] { animation-delay: 560ms; }
 }
 .wave-play { background: rgba(92,127,91,0.25); }
 @keyframes msg-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -126,3 +129,19 @@ html { font-family: var(--font-serif); }
 @keyframes wave-fill { to { background: rgba(70,110,72,0.95); } }
 @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-3px); opacity: 1; } }
 @keyframes book-row { from { background-color: color-mix(in srgb, var(--lav) 45%, transparent); } to { background-color: transparent; } }
+
+/* The signature moment: marked words lifting out of Kobo's bubble into the book. */
+.kfly {
+  position: fixed;
+  z-index: 60;
+  margin: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transform-origin: 0 0;
+  background-image: linear-gradient(var(--lav), var(--lav));
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 0.3em;
+  padding: 0 0.06em;
+  will-change: transform;
+}

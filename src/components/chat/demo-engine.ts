@@ -193,7 +193,7 @@ function purchaseReview(s: DemoState, p: Extract<Pending, { kind: "purchase" }>)
     kind: "buttons",
     body:
       `${pick(lang, "Make I write am like this?", "Shall I write it like this?")}\n${quote}\n*${pick(lang, "Stock wey you buy", "Stock bought")}*\n` +
-      `- ${p.item}, ${pick(lang, "from", "from")} ${p.supplier}: *${formatNaira(p.amount)}*\n- ${pick(lang, "You pay", "Paid")}: ${pick(lang, "cash, everything", "in full, cash")}\n\n` +
+      `- *${p.item}*, ${pick(lang, "from", "from")} ${p.supplier}: *${formatNaira(p.amount)}*\n- ${pick(lang, "You pay", "Paid")}: ${pick(lang, "cash, everything", "in full, cash")}\n\n` +
       pick(lang, "This one na money wey comot from your shop.", "This is money out of your shop."),
     footer: CONFIRMATION_PROMPT,
     buttons: SAVE_BUTTONS,

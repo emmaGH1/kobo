@@ -48,8 +48,17 @@ export interface BookRow {
   amount: string;
   owes?: string;
 }
+/** The signature motion: marked words in Kobo's review bubble fly into the new book rows. */
+export interface Fly {
+  msg: string;
+  items: { text: string; row: string; part: "name" | "amount" }[];
+}
 export interface Frame {
   chapter: number;
+  /** Bold words Kobo picked out in the review bubble `msg`, shown with the lavender mark. */
+  marks?: { msg: string; words: string[] };
+  /** Set on the frame where confirmed rows are written. */
+  fly?: Fly;
   msgs: Msg[];
   typing: boolean;
   pressed?: string;
@@ -87,7 +96,7 @@ export function buildFilm(): Frame[] {
   };
   const reminders = () =>
     st.customers.filter((c) => c.due && c.balance > 0).map((c) => ({ date: c.due!.label, name: c.name, amount: formatNaira(c.due!.amount) }));
-  const frame = (f: { caption: Caption; dur: number; typing?: boolean; pressed?: string; playing?: string }) =>
+  const frame = (f: { caption: Caption; dur: number; typing?: boolean; pressed?: string; playing?: string; marks?: Frame["marks"]; fly?: Fly }) =>
     frames.push({ chapter, msgs: [...msgs], book: [...book], stats: stats(), reminders: reminders(), typing: false, ...f });
   const settle = () =>
     msgs.forEach((m, i) => {
@@ -106,13 +115,18 @@ export function buildFilm(): Frame[] {
   };
   const kobo = (views: ReturnType<typeof step>["replies"], at: Date) => views.forEach((view) => msgs.push({ id: `f${n++}`, from: "kobo", view, time: clock(at) }));
   const customer = (id: string) => st.customers.find((c) => c.id === id)!;
-  /** Confirm, then write the book rows in the same frame the totals change. */
-  const tapSave = (at: Date, write: () => void) => {
-    frame({ caption: { kind: "tap", label: "1 Save" }, pressed: "save", dur: 900 });
+  /** The last Kobo message: the review bubble the trader is about to confirm. */
+  const lastKoboId = () => [...msgs].reverse().find((m) => m.from === "kobo")!.id;
+  type Plan = { marks: NonNullable<Frame["marks"]>; items: { text: string; part: "name" | "amount"; rowOffset: number }[] };
+  /** Confirm, then write the book rows in the same frame the totals change; the marked words fly in. */
+  const tapSave = (at: Date, write: () => void, plan: Plan) => {
+    frame({ caption: { kind: "tap", label: "1 Save" }, pressed: "save", marks: plan.marks, dur: 900 });
     you("1 Save", at);
     const r = run({ action: "save" }, at);
+    const before = book.length;
     write();
-    frame({ caption: { kind: "tap", label: "1 Save" }, typing: true, dur: 700 });
+    const fly: Fly = { msg: plan.marks.msg, items: plan.items.map((it) => ({ text: it.text, part: it.part, row: book[before + it.rowOffset].id })) };
+    frame({ caption: { kind: "tap", label: "1 Save" }, typing: true, marks: plan.marks, fly, dur: 700 });
     kobo(r.replies, at);
     return r;
   };
@@ -135,9 +149,16 @@ export function buildFilm(): Frame[] {
   frame({ caption: heard1, playing: v1.id, dur: 3400 });
   frame({ caption: heard1, typing: true, dur: 800 });
   kobo(run({ text: STOCK_VOICE, voice: true }, at).replies, at);
-  frame({ caption: { kind: "proposal", title: "Stock bought", lines: [{ label: "5 bag rice · Alhaji", value: formatNaira(naira(290000)), tone: "out" }, { label: "Paid", value: "Cash, in full" }] }, dur: 3000 });
+  const m1 = { msg: lastKoboId(), words: ["5 bag rice", formatNaira(naira(290000))] };
+  frame({ caption: { kind: "proposal", title: "Stock bought", lines: [{ label: "5 bag rice · Alhaji", value: formatNaira(naira(290000)), tone: "out" }, { label: "Paid", value: "Cash, in full" }] }, marks: m1, dur: 3000 });
   at = DAY(7, 53);
-  tapSave(at, () => book.push({ id: `r${book.length}`, time: clock(at), name: "5 bag rice · Alhaji", entry: "stock", amount: formatNaira(naira(290000)) }));
+  tapSave(at, () => book.push({ id: `r${book.length}`, time: clock(at), name: "5 bag rice · Alhaji", entry: "stock", amount: formatNaira(naira(290000)) }), {
+    marks: m1,
+    items: [
+      { text: "5 bag rice", part: "name", rowOffset: 0 },
+      { text: formatNaira(naira(290000)), part: "amount", rowOffset: 0 },
+    ],
+  });
   frame({ caption: { kind: "saved", line: "Stock bought today", amount: stats().stock, tone: "out" }, dur: 2800 });
 
   // 2. Sold on credit with a promised date.
@@ -149,7 +170,9 @@ export function buildFilm(): Frame[] {
   frame({ caption: heard2, typing: true, dur: 800 });
   kobo(run({ text: SAMPLE_VOICE.transcript, voice: true }, at).replies, at);
   const p2 = st.pending as Extract<DemoState["pending"], { kind: "entry" }>;
+  const m2 = { msg: lastKoboId(), words: ["Mama Chidi", formatNaira(p2.sale), formatNaira(p2.paid)] };
   frame({
+    marks: m2,
     caption: {
       kind: "proposal",
       title: "Mama Chidi",
@@ -162,11 +185,21 @@ export function buildFilm(): Frame[] {
     dur: 3600,
   });
   at = DAY(12, 11);
-  tapSave(at, () =>
-    customer("mama-chidi")
-      .entries.slice(0, 2)
-      .reverse()
-      .forEach((e) => book.push({ id: `r${book.length}`, time: clock(at), name: "Mama Chidi", entry: e.kind, amount: formatNaira(e.amount), owes: formatNaira(e.owes) })),
+  tapSave(
+    at,
+    () =>
+      customer("mama-chidi")
+        .entries.slice(0, 2)
+        .reverse()
+        .forEach((e) => book.push({ id: `r${book.length}`, time: clock(at), name: "Mama Chidi", entry: e.kind, amount: formatNaira(e.amount), owes: formatNaira(e.owes) })),
+    {
+      marks: m2,
+      items: [
+        { text: "Mama Chidi", part: "name", rowOffset: 0 },
+        { text: formatNaira(p2.sale), part: "amount", rowOffset: 0 },
+        { text: formatNaira(p2.paid), part: "amount", rowOffset: 1 },
+      ],
+    },
   );
   frame({ caption: { kind: "saved", line: "Mama Chidi now owes", amount: formatNaira(customer("mama-chidi").balance), tone: "owed", note: `Reminder set for ${p2.due!.label}` }, dur: 3200 });
 
@@ -188,9 +221,16 @@ export function buildFilm(): Frame[] {
   const r3 = run({ action: pick }, at);
   frame({ caption: { kind: "tap", label: formatNaira(naira(3800)) }, typing: true, dur: 700 });
   kobo(r3.replies, at);
-  frame({ caption: { kind: "proposal", title: "Bayo", lines: [{ label: "Paid", value: formatNaira(naira(3800)), tone: "paid" }, { label: "Will owe", value: formatNaira(customer("bayo").balance - naira(3800)) }] }, dur: 2400 });
+  const m3 = { msg: lastKoboId(), words: ["Bayo", formatNaira(naira(3800))] };
+  frame({ marks: m3, caption: { kind: "proposal", title: "Bayo", lines: [{ label: "Paid", value: formatNaira(naira(3800)), tone: "paid" }, { label: "Will owe", value: formatNaira(customer("bayo").balance - naira(3800)) }] }, dur: 2400 });
   at = DAY(15, 41);
-  tapSave(at, () => book.push({ id: `r${book.length}`, time: clock(at), name: "Bayo", entry: "paid", amount: formatNaira(naira(3800)), owes: formatNaira(customer("bayo").balance) }));
+  tapSave(at, () => book.push({ id: `r${book.length}`, time: clock(at), name: "Bayo", entry: "paid", amount: formatNaira(naira(3800)), owes: formatNaira(customer("bayo").balance) }), {
+    marks: m3,
+    items: [
+      { text: "Bayo", part: "name", rowOffset: 0 },
+      { text: formatNaira(naira(3800)), part: "amount", rowOffset: 0 },
+    ],
+  });
   frame({ caption: { kind: "saved", line: "Bayo now owes", amount: formatNaira(customer("bayo").balance), tone: "owed" }, dur: 2600 });
 
   // 4. Who owes me.

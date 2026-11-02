@@ -1,12 +1,29 @@
 import type { ReactNode } from "react";
 
+/** Wraps marked words in a bold segment with the lavender mark; `data-fly` lets the film lift them out. */
+function marked(text: string, marks: string[] | undefined): ReactNode {
+  if (!marks?.length) return text;
+  const hit = marks.find((m) => text.includes(m));
+  if (!hit) return text;
+  const i = text.indexOf(hit);
+  return (
+    <>
+      {text.slice(0, i)}
+      <span className="kmark" data-fly={hit}>
+        {hit}
+      </span>
+      {text.slice(i + hit.length)}
+    </>
+  );
+}
+
 /** Renders the WhatsApp subset Kobo sends: *bold*, _italic_, > quote, - bullets, 1. lists, ``` blocks. */
-function inline(text: string): ReactNode[] {
+function inline(text: string, marks?: string[]): ReactNode[] {
   return text.split(/(\*[^*\n]+\*|_[^_\n]+_)/g).map((part, i) => {
     if (part.length > 2 && part.startsWith("*") && part.endsWith("*"))
       return (
         <strong key={i} className="font-semibold tnum">
-          {part.slice(1, -1)}
+          {marked(part.slice(1, -1), marks)}
         </strong>
       );
     if (part.length > 2 && part.startsWith("_") && part.endsWith("_"))
@@ -19,7 +36,8 @@ function inline(text: string): ReactNode[] {
   });
 }
 
-export function WaText({ body, className = "" }: { body: string; className?: string }) {
+/** Props only, no engine: safe to render in Remotion. `marks` highlights bold words Kobo picked out. */
+export function WaText({ body, className = "", marks }: { body: string; className?: string; marks?: string[] }) {
   const lines = body.split("\n");
   const out: ReactNode[] = [];
   let i = 0;
@@ -51,7 +69,7 @@ export function WaText({ body, className = "" }: { body: string; className?: str
           {items.map((t, k) => (
             <li key={k} className="flex gap-2">
               <span aria-hidden className="opacity-50">•</span>
-              <span>{inline(t)}</span>
+              <span>{inline(t, marks)}</span>
             </li>
           ))}
         </ul>,
@@ -62,7 +80,7 @@ export function WaText({ body, className = "" }: { body: string; className?: str
       out.push(
         <ol key={out.length}>
           {items.map((t, k) => (
-            <li key={k}>{inline(t)}</li>
+            <li key={k}>{inline(t, marks)}</li>
           ))}
         </ol>,
       );
@@ -70,7 +88,7 @@ export function WaText({ body, className = "" }: { body: string; className?: str
       out.push(<div key={out.length} className="h-2" aria-hidden />);
       i++;
     } else {
-      out.push(<p key={out.length}>{inline(line)}</p>);
+      out.push(<p key={out.length}>{inline(line, marks)}</p>);
       i++;
     }
   }

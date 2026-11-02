@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Bell, Pause, Play, RotateCcw } from "lucide-react";
 import { CHAPTERS, buildFilm, chapterStarts, type Caption, type Frame } from "@/components/chat/film";
 import { Incoming, Outgoing, PhoneShell, Typing, WA } from "@/components/chat/phone";
@@ -11,6 +11,64 @@ const subscribeRM = (cb: () => void) => {
   mq.addEventListener("change", cb);
   return () => mq.removeEventListener("change", cb);
 };
+/** Same curve as --ease in globals.css. */
+const EASE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
+const FLY_MS = 600;
+
+/**
+ * The page's one memorable motion: on confirm, the words Kobo marked in its review bubble lift
+ * out and fly into the new book row. Skipped under reduced motion or when either end is off screen.
+ */
+function flyIntoBook(host: HTMLElement, fly: NonNullable<Frame["fly"]>) {
+  const onScreen = (r: DOMRect) => r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+  const pairs = fly.items.map((it) => ({
+    src: host.querySelector<HTMLElement>(`[data-msg="${fly.msg}"] [data-fly="${CSS.escape(it.text)}"]`),
+    dst: host.querySelector<HTMLElement>(`[data-row="${it.row}"] [data-fly-target="${it.part}"]`),
+  }));
+  if (!pairs.every((p) => p.src && p.dst && onScreen(p.src.getBoundingClientRect()) && onScreen(p.dst.getBoundingClientRect()))) return false;
+  for (const id of new Set(fly.items.map((x) => x.row)))
+    host.querySelector<HTMLElement>(`[data-row="${id}"]`)?.animate([{ opacity: 0 }, { opacity: 0, offset: 0.72 }, { opacity: 1 }], {
+      duration: FLY_MS + 160,
+      easing: EASE,
+    });
+  pairs.forEach(({ src, dst }, k) => {
+    const a = src!.getBoundingClientRect();
+    const b = dst!.getBoundingClientRect();
+    const from = getComputedStyle(src!);
+    const scale = parseFloat(getComputedStyle(dst!).fontSize) / parseFloat(from.fontSize);
+    const dx = b.left - a.left;
+    const dy = b.top - a.top + (b.height - a.height * scale) / 2;
+    const ghost = document.createElement("span");
+    ghost.className = "kfly";
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.textContent = src!.textContent;
+    Object.assign(ghost.style, {
+      left: `${a.left}px`,
+      top: `${a.top}px`,
+      height: `${a.height}px`,
+      lineHeight: `${a.height}px`,
+      font: from.font,
+      color: from.color,
+      letterSpacing: from.letterSpacing,
+    });
+    document.body.appendChild(ghost);
+    // The word in the bubble dims while its copy is in the air.
+    src!.animate([{ opacity: 1 }, { opacity: 0.3, offset: 0.2 }, { opacity: 0.3, offset: 0.8 }, { opacity: 1 }], { duration: FLY_MS + 200, easing: EASE });
+    const anim = ghost.animate(
+      [
+        { transform: "translate(0, 0) scale(1)", opacity: 1 },
+        { transform: `translate(${dx * 0.12}px, ${dy * 0.12 - 18}px) scale(1.08)`, opacity: 1, offset: 0.22 },
+        { transform: `translate(${dx * 0.97}px, ${dy * 0.97}px) scale(${scale})`, opacity: 1, offset: 0.82 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 0 },
+      ],
+      { duration: FLY_MS, delay: k * 60, easing: EASE, fill: "forwards" },
+    );
+    anim.onfinish = () => ghost.remove();
+    anim.oncancel = () => ghost.remove();
+  });
+  return true;
+}
+
 const tone = (t?: "owed" | "paid" | "out") => (t === "owed" ? "text-owed" : t === "paid" ? "text-paid" : "");
 const LABEL = "font-sans text-[12px] uppercase tracking-[0.12em] text-ink-3";
 
@@ -197,6 +255,16 @@ export function Film({ intro, actions }: { intro: React.ReactNode; actions: Reac
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: i === 0 ? "auto" : "smooth" });
   }, [i]);
 
+  // Fly only when the film advances into a confirm frame on its own (not on chapter jumps).
+  const prevI = useRef(i);
+  useLayoutEffect(() => {
+    const was = prevI.current;
+    prevI.current = i;
+    if (!f.fly || reduced || i !== was + 1 || !root.current) return;
+    flyIntoBook(root.current, f.fly);
+  }, [i, f.fly, reduced]);
+  const landing = new Set(!reduced && f.fly ? f.fly.items.map((x) => x.row) : []);
+
   const goTo = (frame: number) => {
     setStarted(true);
     setI(frame);
@@ -230,7 +298,15 @@ export function Film({ intro, actions }: { intro: React.ReactNode; actions: Reac
               ) : m.from === "you" ? (
                 <Outgoing key={m.id} m={m} playing={f.playing === m.id} />
               ) : (
-                <Incoming key={m.id} view={m.view!} time={m.time} live={!m.settled && m.id === lastKobo} pressed={m.id === lastKobo ? f.pressed : undefined} />
+                <Incoming
+                  key={m.id}
+                  msgId={m.id}
+                  view={m.view!}
+                  time={m.time}
+                  live={!m.settled && m.id === lastKobo}
+                  pressed={m.id === lastKobo ? f.pressed : undefined}
+                  marks={f.marks?.msg === m.id ? f.marks.words : undefined}
+                />
               ),
             )}
             {f.typing && <Typing />}
@@ -294,13 +370,15 @@ export function Film({ intro, actions }: { intro: React.ReactNode; actions: Reac
                   </tr>
                 )}
                 {f.book.map((r) => (
-                  <tr key={r.id} className="book-row border-b border-ink/8 last:border-0">
+                  <tr key={r.id} data-row={r.id} data-landing={landing.has(r.id) || undefined} className="book-row border-b border-ink/8 last:border-0">
                     <td className="tnum hidden py-2.5 pr-3 text-ink-3 sm:table-cell lg:hidden xl:table-cell">{r.time}</td>
-                    <td className="py-2.5 pr-3 font-serif text-[15px] leading-tight sm:text-[16px]">{r.name}</td>
+                    <td className="py-2.5 pr-3 font-serif text-[15px] leading-tight sm:text-[16px]">
+                      <span data-fly-target="name">{r.name}</span>
+                    </td>
                     <td className="hidden py-2.5 pr-3 text-ink-2 sm:table-cell">{ENTRY[r.entry]}</td>
                     <td className={`tnum whitespace-nowrap py-2.5 pr-3 text-right ${r.entry === "credit" || r.entry === "opening" ? "text-owed" : r.entry === "paid" ? "text-paid" : ""}`}>
                       {r.entry === "stock" ? "−" : ""}
-                      {r.amount}
+                      <span data-fly-target="amount">{r.amount}</span>
                     </td>
                     <td className="tnum whitespace-nowrap py-2.5 text-right text-[12px] text-ink-2 sm:text-[14px]">{r.owes ? `owes ${r.owes}` : "out"}</td>
                   </tr>

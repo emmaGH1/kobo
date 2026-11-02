@@ -146,8 +146,14 @@ export function Incoming({
   pressed,
   onTap,
   onList,
+  msgId,
+  marks,
 }: {
   view: ReplyView;
+  /** Film only: lets the signature motion find this bubble. */
+  msgId?: string;
+  /** Film only: bold words Kobo picked out, shown with the lavender mark. */
+  marks?: string[];
   time?: string;
   live?: boolean;
   /** Film only: the button being "tapped" right now. */
@@ -156,9 +162,9 @@ export function Incoming({
   onList?: () => void;
 }) {
   return (
-    <div className="msg-in flex max-w-[86%] shrink-0 flex-col gap-[3px] self-start">
+    <div data-msg={msgId} className="msg-in flex max-w-[86%] shrink-0 flex-col gap-[3px] self-start">
       <div className="rounded-[14px] rounded-tl-[4px] bg-white px-2.5 pb-1 pt-1.5 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
-        <WaText body={view.body} className="text-[14.5px] leading-[1.38] [&_strong]:font-semibold" />
+        <WaText body={view.body} marks={marks} className="text-[14.5px] leading-[1.38] [&_strong]:font-semibold" />
         {view.footer && <p className="mt-1 text-[12.5px]" style={{ color: WA.meta }}>{view.footer}</p>}
         {time && <p className="tnum text-right text-[11px]" style={{ color: WA.meta }}>{time}</p>}
         {view.list && (

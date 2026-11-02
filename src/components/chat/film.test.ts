@@ -59,6 +59,20 @@ describe("hero film", () => {
     expect(JSON.stringify(last.caption)).toContain("₦25,000 balance");
   });
 
+  it("every confirmed day row is flown in from words marked in Kobo's review bubble", () => {
+    const flights = film.filter((f) => f.fly);
+    expect(flights).toHaveLength(3);
+    for (const f of flights) {
+      const review = f.msgs.find((m) => m.id === f.fly!.msg)!;
+      expect(review.view?.footer).toBe("1 save / 2 edit / 3 cancel");
+      for (const it of f.fly!.items) {
+        expect(review.view!.body).toContain(`*${it.text}*`); // a bold word in the real message
+        expect(f.marks!.words).toContain(it.text);
+        expect(f.book.some((r) => r.id === it.row)).toBe(true);
+      }
+    }
+  });
+
   it("is deterministic (server and client render the same frames)", () => {
     expect(JSON.stringify(buildFilm())).toBe(JSON.stringify(film));
   });
