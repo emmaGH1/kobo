@@ -14,6 +14,7 @@ const entrySchema = z.object({
   amount_text: z.string().trim().min(1).max(100).nullable(),
   evidence_text: z.string().trim().min(1).max(1000),
   due_date_text: z.string().trim().min(1).max(100).nullable(),
+  remaining_text: z.string().trim().min(1).max(100).nullable().optional(),
 }).strict();
 const args = {
   record_entries: z.object({ entries: z.array(entrySchema).min(1).max(20) }).strict(),

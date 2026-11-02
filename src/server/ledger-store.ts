@@ -11,6 +11,7 @@ export interface EntryDraft {
   customerId?: string;
   /** Source-checked proposed new customer; created only inside confirmation transaction. */
   customerName?: string;
+  calculatedFromBalance?: boolean;
   amountKobo?: number;
   reversalOf?: string;
   dueDate?: string;
