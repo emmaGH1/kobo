@@ -1,6 +1,7 @@
 import type { ReactNode, Ref } from "react";
 import { ChevronLeft, List, Mic, Phone as PhoneIcon, Play, Plus, Video } from "lucide-react";
-import { KoboMark } from "@/components/kobo/logo";
+import { KoboMark } from "../kobo/logo";
+import { CONFIRMATION_PROMPT } from "../../core/contract";
 import type { ChatMessage, ReplyView } from "./types";
 import { WaText } from "./wa-text";
 
@@ -35,6 +36,7 @@ export function PhoneShell({
     <div
       role="group"
       aria-label={label}
+      data-demo="phone"
       className="relative h-[620px] w-[300px] shrink-0 rounded-[54px] bg-[#1C1C1E] p-[9px] shadow-[0_50px_80px_-40px_rgba(45,44,42,0.45),0_0_0_1px_rgba(0,0,0,0.5)] sm:h-[660px] sm:w-[322px]"
     >
       <span aria-hidden className="absolute -left-[3px] top-[120px] h-8 w-[3px] rounded-l bg-[#2a2a2c]" />
@@ -162,7 +164,7 @@ export function Incoming({
   onList?: () => void;
 }) {
   return (
-    <div data-msg={msgId} className="msg-in flex max-w-[86%] shrink-0 flex-col gap-[3px] self-start">
+    <div data-msg={msgId} data-demo={view.footer === CONFIRMATION_PROMPT ? "review-card" : "kobo-message"} className="msg-in flex max-w-[86%] shrink-0 flex-col gap-[3px] self-start">
       <div className="rounded-[14px] rounded-tl-[4px] bg-white px-2.5 pb-1 pt-1.5 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
         <WaText body={view.body} marks={marks} className="text-[14.5px] leading-[1.38] [&_strong]:font-semibold" />
         {view.footer && <p className="mt-1 text-[12.5px]" style={{ color: WA.meta }}>{view.footer}</p>}

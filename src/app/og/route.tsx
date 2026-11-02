@@ -6,7 +6,7 @@ export async function GET() {
     sample: true,
     date: "MON 2 NOV",
     shop: "Nkechi Provisions",
-    owedKobo: 12_280_000,
+    owedKobo: 8_750_000,
     creditKobo: 4_500_000,
     collectedKobo: 2_380_000,
     stockKobo: 29_000_000,

@@ -40,14 +40,8 @@ export type Caption =
   | { kind: "reminder"; name: string; amount: string; date: string }
   | { kind: "draft"; to: string; text: string };
 
-export interface BookRow {
-  id: string;
-  time: string;
-  name: string;
-  entry: "credit" | "paid" | "stock" | "fix" | "opening";
-  amount: string;
-  owes?: string;
-}
+import type { BookRow } from "@/components/demo/types";
+export type { BookRow };
 /** The signature motion: marked words in Kobo's review bubble fly into the new book rows. */
 export interface Fly {
   msg: string;

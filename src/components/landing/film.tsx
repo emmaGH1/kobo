@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { Bell, Pause, Play, RotateCcw } from "lucide-react";
 import { CHAPTERS, buildFilm, chapterStarts, type Caption, type Frame } from "@/components/chat/film";
 import { Incoming, Outgoing, PhoneShell, Typing, WA } from "@/components/chat/phone";
+import { BookPanel } from "@/components/demo/book-panel";
 
 const RM = "(prefers-reduced-motion: reduce)";
 const subscribeRM = (cb: () => void) => {
@@ -220,7 +221,6 @@ function CaptionView({ c }: { c: Caption }) {
   }
 }
 
-const ENTRY = { credit: "Credit sale", paid: "Paid", stock: "Stock bought", fix: "Correction", opening: "Opening balance" } as const;
 
 export function Film({ intro, actions }: { intro: React.ReactNode; actions: React.ReactNode }) {
   const frames = useMemo<Frame[]>(() => buildFilm(), []);
@@ -342,61 +342,7 @@ export function Film({ intro, actions }: { intro: React.ReactNode; actions: Reac
           </div>
 
           {/* the book */}
-          <div className="mt-8 rounded-[24px] border border-ink/12 bg-[#FAFAF8] p-6 lg:p-7">
-            <div className="flex items-baseline justify-between">
-              <p className={LABEL}>The book · Mon 2 Nov</p>
-              <p className="font-sans text-[12px] text-ink-3">Only confirmed entries</p>
-            </div>
-            <dl className="mt-5 grid grid-cols-3 gap-4">
-              {[
-                { l: "People owe you", v: f.stats.owed, c: "" },
-                { l: "Collected today", v: f.stats.collected, c: "text-paid" },
-                { l: "Stock bought", v: f.stats.stock, c: "" },
-              ].map((x) => (
-                <div key={x.l}>
-                  <dt className="font-sans text-[12px] text-ink-2 sm:text-[13px]">{x.l}</dt>
-                  <dd className={`tnum mt-1 text-[20px] leading-none tracking-[-0.02em] sm:text-[30px] lg:text-[28px] xl:text-[32px] ${x.c}`}>{x.v}</dd>
-                </div>
-              ))}
-            </dl>
-            <table className="mt-6 w-full border-t border-ink/12 font-sans text-[14px]">
-              <thead className="sr-only">
-                <tr><th>Time</th><th>Who or what</th><th>Entry</th><th>Amount</th><th>Owes</th></tr>
-              </thead>
-              <tbody>
-                {f.book.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-4 text-ink-3">Nothing written yet. Kobo only writes after you confirm.</td>
-                  </tr>
-                )}
-                {f.book.map((r) => (
-                  <tr key={r.id} data-row={r.id} data-landing={landing.has(r.id) || undefined} className="book-row border-b border-ink/8 last:border-0">
-                    <td className="tnum hidden py-2.5 pr-3 text-ink-3 sm:table-cell lg:hidden xl:table-cell">{r.time}</td>
-                    <td className="py-2.5 pr-3 font-serif text-[15px] leading-tight sm:text-[16px]">
-                      <span data-fly-target="name">{r.name}</span>
-                    </td>
-                    <td className="hidden py-2.5 pr-3 text-ink-2 sm:table-cell">{ENTRY[r.entry]}</td>
-                    <td className={`tnum whitespace-nowrap py-2.5 pr-3 text-right ${r.entry === "credit" || r.entry === "opening" ? "text-owed" : r.entry === "paid" ? "text-paid" : ""}`}>
-                      {r.entry === "stock" ? "−" : ""}
-                      <span data-fly-target="amount">{r.amount}</span>
-                    </td>
-                    <td className="tnum whitespace-nowrap py-2.5 text-right text-[12px] text-ink-2 sm:text-[14px]">{r.owes ? `owes ${r.owes}` : "out"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {f.reminders.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink/12 pt-4 font-sans text-[13px] text-ink-2">
-                <Bell className="size-4 text-ink" strokeWidth={1.5} />
-                <span className="text-ink">Reminders</span>
-                {f.reminders.map((r) => (
-                  <span key={r.name}>
-                    {r.date} · {r.name} · <span className="tnum">{r.amount}</span>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          <BookPanel className="mt-8" date="Mon 2 Nov" stats={f.stats} rows={f.book} reminders={f.reminders} landing={landing} />
 
           <div className="mt-6 flex items-center gap-4 font-sans text-[12px] text-ink-3">
             <button

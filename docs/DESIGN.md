@@ -39,6 +39,11 @@ The owner judged v2 generic (a phone in a coloured box, as in the WhatsForm and 
 
 Captures and a 50-second recording of the film are in `docs/design/probe-v3/` (`kobo-film.mp4`).
 
+### Camera-ready components (demo video)
+
+`src/components/demo/index.ts` exports props-only components for Remotion: `Phone` (the iPhone + WhatsApp chrome), `KoboBubble` / `TraderBubble` / `Typing`, `WaText`, `ReviewCard`, `BookPanel`, `SummaryCard` (the same component `src/app/og` renders to PNG), and `KoboLogo` / `KoboMark`. A test walks their import graph and fails if any reaches the demo engine or the film script. They need `src/app/globals.css` (tokens) and the Geist fonts.
+Capture hooks: `data-demo="phone"`, `"review-card"` (any Kobo message ending in the `1 save / 2 edit / 3 cancel` prompt), `"kobo-message"`, `"book"`, `"summary-card"`, `"notebook-photo"`.
+
 ### v3 additions to the WhatsApp formats (section 4)
 
 These extend section 4 with the same rules: Pidgin first, `1 save / 2 edit / 3 cancel` on every review, nothing saved before confirmation.
