@@ -27,6 +27,9 @@ At the owner's request the film now covers six chapters: stock bought, credit sa
 ## 10/10 pass (2026-11-02)
 Seven owner-requested steps, each committed and pushed: (1) book totals start at ₦0 and always equal confirmed rows, with opening balances shown first; (2) product in the first screen, phone pinned beside the book on desktop; (3) signature motion, marked words fly from Kobo's bubble into the book (600ms, --ease, reduced-motion safe); (4) notebook photo slot (NOTEBOOK_PHOTO in src/components/landing/notebook-photo.tsx); (5) Your turn greeting plus hint; (6) props-only camera components in src/components/demo with data-demo hooks, SummaryCard shared with /og; (7) ChatBackend adapter in src/components/chat/backend.ts. 35 tests, lint, typecheck and build pass; flows verified in Chromium at 1440 and 390.
 
+## Cards and skip-to-Friday (2026-11-03)
+Card kit plus ReceiptCard (/og/receipt), DebtorsCard, CustomerHistoryCard, StockCard, InsightsCard, NotebookImportCard, ReminderCard and DraftMessageCard in src/components/demo (props-only, data-demo hooks, tests; samples at /og/sample/<card>). 4.10/4.11 wording is shared via reminder-copy.ts and checked against DESIGN.md. "Skip to Friday" in Your turn goes through ChatBackend.skipToFriday/clockLabel. 60 tests, lint, typecheck and build pass; every card rendered and inspected; the Friday flow was driven in Chromium.
+
 ## Blockers / unresolved decisions
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 

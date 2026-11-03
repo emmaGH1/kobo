@@ -39,9 +39,29 @@ The owner judged v2 generic (a phone in a coloured box, as in the WhatsForm and 
 
 Captures and a 50-second recording of the film are in `docs/design/probe-v3/` (`kobo-film.mp4`).
 
+### Image cards (sent in WhatsApp, rendered from real data by core later)
+
+All are props-only, 1080×1350, and built on `src/components/demo/card-kit.tsx` (the summary card's frame, palette, labels, rows and tags; Satori-safe inline styles), each with a `data-demo` hook and tests. They never calculate money. Each checks the figures it is given and refuses to render if they don't agree.
+
+| Card | `data-demo` | Shows | Refuses when |
+|---|---|---|---|
+| `SummaryCard` | `summary-card` | day totals, biggest balances | bad counts |
+| `ReceiptCard` | `receipt-card` | one sale: item, qty, amount, paid, balance, promised date, shop; PAID IN FULL / PART PAID / ON CREDIT | paid + owed ≠ amount |
+| `DebtorsCard` | `debtors-card` | who owes, biggest first, days owed, optional "N others" | rows (+ others) ≠ total |
+| `CustomerHistoryCard` | `customer-history-card` | balance, sales/payments/corrections newest first, promised dates (due/kept/missed) | > 7 rows |
+| `StockCard` | `stock-card` | stock left, LOW at or below the reorder level, low items first | bad quantities |
+| `InsightsCard` | `insights-card` | best seller, top products and best customers by money | > 4 each |
+| `NotebookImportCard` | `notebook-import-card` | photo thumbnail (placeholder if none), lines read, CHECK + exactly what was read on unclear lines, "?" for unreadable amounts, `1 save / 2 edit / 3 cancel` | 0 or > 8 lines |
+| `ReminderCard` | `reminder-card` | 4.10: due amount, the exact message lines, quick replies in order | due > total owed, or 0 |
+| `DraftMessageCard` | `draft-message-card` | 4.11: intro, the exact message to forward, "from your own WhatsApp" | as above |
+
+The 4.10/4.11 wording lives in `src/components/demo/reminder-copy.ts`, shared by the cards and the chat replies. A test checks it against this document word for word.
+Routes: `/og` (summary), `/og/receipt`, and `/og/sample/<summary|receipt|debtors|history|stock|insights|import|reminder|draft>`, all sample data for design review. Real cards must come through an authenticated, owner-scoped core path.
+**Core data these cards assume but core doesn't record yet:** stock quantities and reorder levels (StockCard), product names and quantities per sale (Receipt, Insights), promise status (History), and the notebook-photo reading pipeline (Import).
+
 ### "Your turn" backend swap
 
-The interactive phone talks only to `ChatBackend` in `src/components/chat/backend.ts` (`greeting`, async `send`, `setLanguage`, `reset`, `limit`, `suggestions`, `sampleVoice`). Today `createChatBackend` returns the scripted engine. When core ships `/api/demo/*`, add `createApiBackend` in that file (the endpoint mapping is in its header comment) and change that one line. The UI already awaits replies, shows typing only while a request is in flight, and shows the "nothing was saved" error if a send fails. A test fails if `whatsapp-demo.tsx` imports the engine directly. The film stays scripted and labelled. `demo-engine.ts` can be deleted once nothing but the film uses it and the film's frames are frozen to data.
+The interactive phone talks only to `ChatBackend` in `src/components/chat/backend.ts` (`greeting`, async `send`, `setLanguage`, `reset`, `limit`, `suggestions`, `sampleVoice`, and the demo-only `skipToFriday` / `clockLabel`). **Skip to Friday** moves the demo session clock to the next Friday at 8:00 AM and shows what Kobo sends by itself then (the 4.10 reminder, or "nothing due"), under a WhatsApp "Friday" separator. It doesn't count toward the message limit, and reset returns to real time. Core's equivalent is `POST /api/demo/clock { to: "friday" }`, for demo sessions only. A real book never has a movable clock. Today `createChatBackend` returns the scripted engine. When core ships `/api/demo/*`, add `createApiBackend` in that file (the endpoint mapping is in its header comment) and change that one line. The UI already awaits replies, shows typing only while a request is in flight, and shows the "nothing was saved" error if a send fails. A test fails if `whatsapp-demo.tsx` imports the engine directly. The film stays scripted and labelled. `demo-engine.ts` can be deleted once nothing but the film uses it and the film's frames are frozen to data.
 
 ### Camera-ready components (demo video)
 
