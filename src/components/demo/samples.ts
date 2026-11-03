@@ -6,6 +6,7 @@ import type { CustomerHistoryCardData } from "./customer-history-card";
 import type { DebtorsCardData } from "./debtors-card";
 import type { InsightsCardData } from "./insights-card";
 import type { NotebookImportCardData } from "./notebook-import-card";
+import type { ReminderCardData } from "./reminder-cards";
 import type { ReceiptCardData } from "./receipt-card";
 import type { StockCardData } from "./stock-card";
 import type { SummaryCardData } from "./summary-card";
@@ -77,4 +78,10 @@ export const SAMPLE_IMPORT: NotebookImportCardData = {
     { name: "Aunty N…", amountKobo: 1_200_000, read: "Aunty N… 12,000", unclear: "name cut off at the page edge" },
     { name: "Tunde", amountKobo: null, read: "3 5", unclear: "₦3,500 or ₦35,000?" },
   ],
+};
+
+/** Friday 6 Nov, 8:00 AM: Mama Chidi's promised balance from the film's credit sale. */
+export const SAMPLE_REMINDER: ReminderCardData = {
+  sample: true, lang: "pcm", shop, date: "FRI 6 NOV · 8:00 AM", customer: "Mama Chidi", dueLabel: "Fri 6 Nov",
+  dueKobo: 2_500_000, totalOwedKobo: 3_350_000, item: "2 bag rice", soldOn: "2 Nov",
 };
