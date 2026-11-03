@@ -5,6 +5,7 @@
 import type { CustomerHistoryCardData } from "./customer-history-card";
 import type { DebtorsCardData } from "./debtors-card";
 import type { InsightsCardData } from "./insights-card";
+import type { NotebookImportCardData } from "./notebook-import-card";
 import type { ReceiptCardData } from "./receipt-card";
 import type { StockCardData } from "./stock-card";
 import type { SummaryCardData } from "./summary-card";
@@ -62,5 +63,18 @@ export const SAMPLE_INSIGHTS: InsightsCardData = {
     { name: "Mama Chidi", paidKobo: 2_500_000, visits: 3 },
     { name: "Aunty Ngozi", paidKobo: 1_800_000, visits: 2 },
     { name: "Tunde", paidKobo: 1_250_000, visits: 4 },
+  ],
+};
+
+/** The opening balances the film carries in come from a confirmed notebook import like this one. */
+export const SAMPLE_IMPORT: NotebookImportCardData = {
+  sample: true, shop, date: "SUN 1 NOV", photo: null,
+  lines: [
+    { name: "Mama Chidi", amountKobo: 850_000, read: "8,500" },
+    { name: "Bayo", amountKobo: 3_180_000, read: "31,800" },
+    { name: "Iya Basira", amountKobo: 2_600_000, read: "26,000" },
+    { name: "Emeka (spare parts)", amountKobo: null, read: "19,8??", unclear: "last digits smudged" },
+    { name: "Aunty N…", amountKobo: 1_200_000, read: "Aunty N… 12,000", unclear: "name cut off at the page edge" },
+    { name: "Tunde", amountKobo: null, read: "3 5", unclear: "₦3,500 or ₦35,000?" },
   ],
 };

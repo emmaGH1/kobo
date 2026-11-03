@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { CustomerHistoryCard } from "../../../../components/demo/customer-history-card";
 import { DebtorsCard } from "../../../../components/demo/debtors-card";
 import { InsightsCard } from "../../../../components/demo/insights-card";
+import { NotebookImportCard } from "../../../../components/demo/notebook-import-card";
 import { ReceiptCard } from "../../../../components/demo/receipt-card";
 import { StockCard } from "../../../../components/demo/stock-card";
 import { SummaryCard } from "../../../../components/demo/summary-card";
@@ -17,6 +18,7 @@ const CARDS: Record<string, () => ReactElement> = {
   history: () => <CustomerHistoryCard data={S.SAMPLE_HISTORY} />,
   stock: () => <StockCard data={S.SAMPLE_STOCK} />,
   insights: () => <InsightsCard data={S.SAMPLE_INSIGHTS} />,
+  import: () => <NotebookImportCard data={S.SAMPLE_IMPORT} />,
 };
 
 export async function GET(_req: Request, { params }: { params: Promise<{ card: string }> }) {
