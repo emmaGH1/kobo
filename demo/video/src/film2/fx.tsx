@@ -123,6 +123,7 @@ export function Caption({ m, f, offset = 0, accent = [] as string[] }: { m: stri
   if (cur.length) phrases.push(cur);
   let ph = phrases.find((p, i) => t >= p[0][1] - 0.05 && (i === phrases.length - 1 || t < phrases[i + 1][0][1] - 0.05));
   if (!ph) return null;
+  if (/^["“]/.test(ph[0][0])) return null; // character lines are shown as quotes, not captions
   const last = ph[ph.length - 1][1];
   const fade = t > last + 1.6 ? 0 : 1;
   const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
