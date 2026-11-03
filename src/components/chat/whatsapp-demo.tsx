@@ -87,8 +87,10 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
     void run({ text: t }, { id: nid(), from: "you", text: t });
   };
   const tap = (b: { id: string; title: string }) => void run({ action: b.id }, { id: nid(), from: "you", text: b.title });
-  const voice = () =>
-    void run({ text: backend.sampleVoice.transcript, voice: true }, { id: nid(), from: "you", text: backend.sampleVoice.transcript, voice: true });
+  const voice = () => {
+    const sample = backend.sampleVoice;
+    if (sample) void run({ text: sample.transcript, voice: true }, { id: nid(), from: "you", text: sample.transcript, voice: true });
+  };
   async function reset() {
     const r = await backend.reset();
     setRemaining(r.remaining);
@@ -121,8 +123,8 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
         placeholder={atLimit ? "Demo finished" : "Message"}
         className="h-9 min-w-0 flex-1 rounded-full border border-black/10 bg-white px-3.5 text-[15px] outline-none placeholder:text-[#8696A0] focus-visible:ring-2 focus-visible:ring-[#007AFF]/40"
       />
-      {draft.trim() ? (
-        <button type="submit" aria-label="Send" className="flex size-9 shrink-0 items-center justify-center rounded-full" style={{ background: WA.ios }}>
+      {draft.trim() || !backend.sampleVoice ? (
+        <button type="submit" aria-label="Send" disabled={!draft.trim()} className="flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-40" style={{ background: WA.ios }}>
           <SendHorizontal className="size-[18px] text-white" strokeWidth={2} />
         </button>
       ) : (
@@ -180,9 +182,11 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
           ))}
         </ul>
         <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3 font-sans text-[13px] text-ink-2">
-          <button type="button" onClick={voice} disabled={atLimit} className="h-10 rounded-full bg-ink px-4 text-paper disabled:opacity-40">
-            Send the sample voice note
-          </button>
+          {backend.sampleVoice && (
+            <button type="button" onClick={voice} disabled={atLimit} className="h-10 rounded-full bg-ink px-4 text-paper disabled:opacity-40">
+              Send the sample voice note
+            </button>
+          )}
           <div role="group" aria-label="Reply language" className="flex rounded-full border border-ink/25 p-0.5">
             {(["pcm", "en"] as const).map((l) => (
               <button key={l} type="button" aria-pressed={lang === l} onClick={() => switchLang(l)} className={`h-8 rounded-full px-3 ${lang === l ? "bg-ink text-paper" : ""}`}>

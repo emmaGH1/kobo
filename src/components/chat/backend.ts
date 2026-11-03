@@ -1,9 +1,9 @@
 /**
  * THE ONE SWAP POINT for "Your turn". The chat UI (whatsapp-demo.tsx) talks only to ChatBackend.
  *
- * Today: createScriptedBackend, which runs the scripted demo engine in the browser.
- * When core ships /api/demo/* (docs/DESIGN.md section 9), add createApiBackend here and change
- * createChatBackend to return it, then delete demo-engine.ts once the film no longer needs it:
+ * Live: createApiBackend, a thin client of core's /api/demo/* (docs/DESIGN.md section 9). Every
+ * reply comes from the same handleMessage a real trader uses, on a fresh fictional book per visitor.
+ * createScriptedBackend (the in-browser demo engine) stays for the film and offline tests.
  *   - first send / reset  → POST /api/demo/session        (httpOnly cookie; returns remaining)
  *   - send({ text })      → POST /api/demo/message { text }
  *   - send({ voice })     → POST /api/demo/voice-sample { sampleId }   (server-owned clip, never a path)
@@ -39,7 +39,8 @@ export interface SkipResult extends ChatResult {
 export interface ChatBackend {
   readonly limit: number;
   readonly suggestions: readonly string[];
-  readonly sampleVoice: { label: string; transcript: string };
+  /** null when no consented, server-owned sample clip exists; the UI hides the voice note then. */
+  readonly sampleVoice: { label: string; transcript: string } | null;
   greeting(lang: Lang): ReplyView;
   send(input: ChatInput): Promise<ChatResult>;
   setLanguage(lang: Lang): void;
@@ -108,5 +109,109 @@ export function createScriptedBackend(lang: Lang = "pcm"): ChatBackend {
   };
 }
 
-/** Swap this line for the real API backend when core's /api/demo/* lands. */
-export const createChatBackend: (lang?: Lang) => ChatBackend = createScriptedBackend;
+/** Core's demo allowance: model calls per visitor session (DEMO_LIMIT in src/server/demo.ts). */
+export const API_MESSAGE_LIMIT = 12;
+
+const BUSY: Record<Lang, string> = {
+  pcm: "I still dey work on your last message. Wait small.",
+  en: "I'm still working on your last message. One moment.",
+};
+
+const lagos = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Lagos", ...opts }).format(d);
+
+/** Thrown for server errors the UI shows as its "nothing was saved" failure reply. */
+export class DemoApiError extends Error {
+  constructor(readonly status: number) {
+    super(`Demo API request failed (HTTP ${status})`);
+    this.name = "DemoApiError";
+  }
+}
+
+interface ApiReply {
+  replies?: ReplyView[];
+  remaining?: number;
+  limited?: boolean;
+  simulatedAt?: number;
+}
+
+export function createApiBackend(lang: Lang = "pcm", fetchImpl: typeof fetch = (...a) => fetch(...a), base = "/api/demo"): ChatBackend {
+  let current: Lang = lang;
+  let session: Promise<void> | null = null;
+  let clock: Date | null = null;
+
+  async function request(op: string, body: Record<string, unknown>) {
+    return fetchImpl(`${base}/${op}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+  function ensureSession() {
+    session ??= request("session", { lang: current }).then((r) => {
+      if (!r.ok) {
+        session = null;
+        throw new DemoApiError(r.status);
+      }
+    });
+    return session;
+  }
+  /** Runs an operation, recreating an expired session once (cookie TTL is 30 minutes). */
+  async function call(op: string, body: Record<string, unknown>): Promise<ApiReply> {
+    await ensureSession();
+    let r = await request(op, body);
+    if (r.status === 401) {
+      session = null;
+      await ensureSession();
+      r = await request(op, body);
+    }
+    if (r.status === 429) return { replies: [], remaining: 0, limited: true };
+    if (r.status === 409) return { replies: [{ lang: current, kind: "text", body: BUSY[current] }] };
+    if (!r.ok) throw new DemoApiError(r.status);
+    return (await r.json()) as ApiReply;
+  }
+  let remaining = API_MESSAGE_LIMIT;
+  const result = (a: ApiReply): ChatResult => {
+    if (typeof a.remaining === "number") remaining = a.remaining;
+    return { replies: a.replies ?? [], remaining, ...(a.limited ? { limited: true } : {}) };
+  };
+
+  return {
+    limit: API_MESSAGE_LIMIT,
+    suggestions: CHIPS,
+    sampleVoice: null,
+    greeting: (l) => ({ lang: l, kind: "text", body: GREETING[l] }),
+    async send(input) {
+      const text = input.text?.trim();
+      if (!input.action && !text) return { replies: [], remaining };
+      const r = result(await call(input.action ? "action" : "message", input.action ? { action: input.action } : { text }));
+      if (clock) clock = new Date(clock.getTime() + 60_000);
+      return r;
+    },
+    setLanguage(l) {
+      current = l;
+      // Before the first message the language travels with session creation instead.
+      if (session) void session.then(() => request("language", { lang: l })).catch(() => {});
+    },
+    async reset() {
+      clock = null;
+      const r = await request("reset", { lang: current });
+      if (r.status === 429) return { remaining: (remaining = 0) };
+      if (!r.ok) throw new DemoApiError(r.status);
+      session = Promise.resolve();
+      return { remaining: result((await r.json()) as ApiReply).remaining };
+    },
+    async skipToFriday() {
+      const a = await call("clock", { to: "friday" });
+      if (a.limited) return { dateLabel: "", ...result(a) };
+      if (typeof a.simulatedAt === "number") clock = new Date(a.simulatedAt);
+      const replies = a.replies?.length ? a.replies : [{ lang: current, kind: "text" as const, body: NOTHING_DUE[current] }];
+      return { dateLabel: lagos(clock ?? new Date(), { weekday: "long" }), ...result({ ...a, replies }) };
+    },
+    clockLabel: () => (clock ? lagos(clock, { hour: "numeric", minute: "2-digit" }) : null),
+  };
+}
+
+/** "Your turn" talks to core's real demo API. Use createScriptedBackend for the film/offline. */
+export const createChatBackend: (lang?: Lang) => ChatBackend = createApiBackend;
