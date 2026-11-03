@@ -1,0 +1,90 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#222">
+<canvas id=c width=1920 height=1080></canvas>
+<script>
+const P=new URLSearchParams(location.search).get('s')||'A';
+const c=document.getElementById('c'),g=c.getContext('2d');
+let seed=7;const R=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const J=(a)=>(R()-.5)*2*a;
+// wobbly cut polygon from points
+function cut(pts,j=2.5,step=18){const o=[];for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];const d=Math.hypot(b[0]-a[0],b[1]-a[1]);const n=Math.max(1,Math.round(d/step));for(let k=0;k<n;k++){const t=k/n;o.push([a[0]+(b[0]-a[0])*t+J(j),a[1]+(b[1]-a[1])*t+J(j)])}}return o}
+function poly(pts,fill,o={}){const p=cut(pts,o.j??2.5,o.step??18);g.save();if(o.shadow){g.shadowColor='rgba(20,10,0,.35)';g.shadowOffsetX=5;g.shadowOffsetY=6;g.shadowBlur=4}g.beginPath();p.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();g.fillStyle=fill;g.fill();if(o.stroke){g.lineWidth=o.lw||3;g.strokeStyle=o.stroke;g.stroke()}g.restore()}
+function circ(x,y,r,fill,o={}){const pts=[];const n=Math.max(10,Math.round(r/3));for(let i=0;i<n;i++){const a=i/n*6.283;pts.push([x+Math.cos(a)*r,y+Math.sin(a)*r*(o.sy||1)])}poly(pts,fill,{...o,step:99,j:o.j??1.2})}
+function rect(x,y,w,h,fill,o={}){poly([[x,y],[x+w,y],[x+w,y+h],[x,y+h]],fill,o)}
+// ---- palettes
+const PAL={
+A:{sky:'#F3E3C3',wall:'#1d4fb8',wall2:'#4f95dc',floor:'#1f9a5a',awn1:'#E8472B',awn2:'#FFF1D6',ink:'#161412',skin:'#7A4A2B',skin2:'#9A6038',gele:'#F2B01E',gele2:'#E8472B',dress:'#FFF1D6',pat:'#1d4fb8',oil:'#F2B01E',bis:'#E8472B',pink:'#F4A6B8',paper:'#FFF8E7'},
+B:{sky:'#F1DFB8',wall:'#2F6B4F',wall2:'#2F6B4F',floor:'#B5472B',awn1:'#C93A2B',awn2:'#F4E4B4',ink:'#2B1B12',skin:'#6B3D22',skin2:'#8A5530',gele:'#E3A21A',gele2:'#B02E22',dress:'#F4E4B4',pat:'#2F6B4F',oil:'#E3A21A',bis:'#C93A2B',pink:'#E88A6B',paper:'#F4E4B4'},
+C:{sky:'#EFE6D2',wall:'#2A2622',wall2:'#2A2622',floor:'#2A2622',awn1:'#C2402A',awn2:'#EFE6D2',ink:'#1B1816',skin:'#2A2622',skin2:'#2A2622',gele:'#C2402A',gele2:'#C2402A',dress:'#EFE6D2',pat:'#1B1816',oil:'#C2402A',bis:'#1B1816',pink:'#C2402A',paper:'#EFE6D2'}
+}[P];
+const K=PAL;
+// background
+g.fillStyle=K.sky;g.fillRect(0,0,1920,1080);
+if(P==='A'){ // checker wall like Polynesia
+ for(let y=0;y<620;y+=124)for(let x=0;x<1920;x+=132){rect(x,y,132,124,((x/132+y/124)%2)?K.wall:K.wall2,{j:1.2,step:40})}
+ rect(0,700,1920,380,K.floor,{j:3});rect(0,690,1920,18,K.ink,{j:2});
+ // paper stars + birds
+ for(let i=0;i<7;i++){const x=120+R()*1700,y=60+R()*220;poly(star(x,y,26+R()*16,10,8,R()*6),K.gele,{shadow:1,j:1.5,step:20})}
+}
+if(P==='B'){ // hand painted sign: flat green wall w/ painted border + brush
+ rect(0,0,1920,1080,K.wall,{j:0,step:999});
+ g.fillStyle='#265a42';for(let i=0;i<260;i++){g.globalAlpha=.07+R()*.08;g.fillRect(R()*1920,R()*700,60+R()*300,6+R()*14)}g.globalAlpha=1;
+ rect(0,700,1920,380,K.floor,{j:0,step:999});rect(0,690,1920,14,K.ink,{j:3});
+ rect(40,40,1840,1000,'rgba(0,0,0,0)',{stroke:K.awn2,lw:10,j:2});
+}
+if(P==='C'){ // linocut: cream paper, heavy black ground
+ rect(0,0,1920,1080,K.sky,{j:0,step:999});
+ rect(0,690,1920,390,K.ink,{j:4});
+ // carved rays in wall
+ g.strokeStyle=K.ink;g.lineWidth=5;for(let i=0;i<46;i++){const x=i*42+J(6);g.beginPath();g.moveTo(x,0);g.lineTo(x+J(8),190+R()*260);g.stroke()}
+}
+function star(x,y,r1,r2,n,rot){const p=[];for(let i=0;i<n*2;i++){const r=i%2?r2:r1,a=rot+i/(n*2)*6.283;p.push([x+Math.cos(a)*r,y+Math.sin(a)*r])}return p}
+// ---- stall: poles, awning
+rect(380,300,26,420,K.ink,{j:2});rect(1460,300,26,420,K.ink,{j:2});
+// awning scallops
+const aw=[];for(let i=0;i<10;i++){const x=300+i*128;rect(x,250,128,120,i%2?K.awn2:K.awn1,{shadow:P==='A',j:2});circ(x+64,370,64,i%2?K.awn2:K.awn1,{sy:.6,j:1.4,shadow:P==='A'})}
+rect(290,215,1280,50,K.ink,{j:2});
+// shelves
+rect(430,430,1000,16,K.ink,{j:2});rect(430,560,1000,16,K.ink,{j:2});
+// oil bottles on top shelf, biscuit packs on lower
+for(let i=0;i<9;i++){const x=470+i*104;poly([[x,430],[x+14,330],[x+22,300],[x+46,300],[x+54,330],[x+68,430]],K.oil,{shadow:P==='A',j:1.6});rect(x+22,285,24,22,K.ink,{j:1});rect(x+12,370,46,36,K.awn2,{j:1.4});
+ if(P==='C')rect(x+16,340,12,70,K.sky,{j:1})}
+for(let i=0;i<8;i++){const x=470+i*116;rect(x,500,92,60,i%2?K.bis:K.awn2,{shadow:P==='A',j:2});circ(x+46,530,14,i%2?K.awn2:K.bis,{j:1})}
+// counter
+rect(330,700,1260,120,P==='C'?K.ink:'#B7612E',{shadow:P==='A',j:3});
+if(P==='A'){for(let i=0;i<14;i++)poly([[345+i*90,715],[390+i*90,715],[368+i*90,800]],i%2?K.gele:K.awn2,{j:1.5})}
+if(P==='B'){for(let i=0;i<12;i++)circ(380+i*100,760,18,i%2?K.gele:K.awn2,{j:1})}
+// notebook on counter
+poly([[760,690],[980,672],[1000,740],[780,760]],K.paper,{shadow:P==='A',j:2,stroke:K.ink,lw:3});
+g.strokeStyle=K.ink;g.lineWidth=3;for(let i=0;i<4;i++){g.beginPath();g.moveTo(790+i*5,700+i*14);g.lineTo(960+i*5,688+i*14);g.stroke()}
+// ---- Nkechi
+const nx=1120,ny=0;
+// body
+poly([[1020,720],[1050,560],[1110,520],[1210,520],[1270,560],[1300,720]],K.dress,{shadow:P==='A',j:2.4,stroke:P!=='A'?K.ink:null});
+// wax print circles on dress
+for(let i=0;i<9;i++)circ(1060+(i%3)*80+(Math.floor(i/3)%2)*20,590+Math.floor(i/3)*40,12,i%2?K.pat:K.awn1,{j:1});
+// neck + head
+poly([[1140,520],[1150,470],[1190,470],[1200,520]],K.skin2,{j:1.6});
+circ(1170,430,56,K.skin,{sy:1.12,shadow:P==='A',j:1.4,stroke:P!=='A'?K.ink:null});
+// gele headwrap
+poly([[1090,400],[1110,330],[1160,290],[1230,300],[1270,340],[1250,400],[1200,380],[1140,390]],K.gele,{shadow:P==='A',j:2.2,stroke:P!=='A'?K.ink:null});
+poly([[1200,300],[1270,250],[1330,290],[1290,350],[1250,330]],K.gele2,{shadow:P==='A',j:2,stroke:P!=='A'?K.ink:null});
+poly([[1120,340],[1150,305],[1190,340],[1160,365]],K.gele2,{j:1.6});
+// face: eyes, mouth
+poly([[1142,430],[1158,423],[1160,433],[1146,438]],K.ink,{j:.5,step:8});poly([[1184,428],[1200,421],[1204,431],[1188,436]],K.ink,{j:.5,step:8});
+poly([[1158,462],[1174,457],[1190,462],[1174,472]],K.awn1,{j:.6,step:8});
+if(P==='A'){circ(1130,452,10,K.pink,{j:.5});circ(1210,450,10,K.pink,{j:.5})}
+// arm holding pen toward notebook
+poly([[1040,590],[1000,670],[960,700],[975,716],[1030,690],[1075,610]],K.skin,{shadow:P==='A',j:1.6,stroke:P!=='A'?K.ink:null});
+// ---- customer (Bayo) at left, back view silhouette
+poly([[130,760],[150,520],[200,470],[300,470],[350,520],[360,760]],P==='C'?K.ink:'#3D52A0',{shadow:P==='A',j:2.6,stroke:P==='B'?K.ink:null});
+circ(250,410,52,P==='C'?K.ink:K.skin2,{sy:1.1,shadow:P==='A',j:1.4,stroke:P==='B'?K.ink:null});
+poly([[205,380],[230,350],[280,350],[305,385],[290,375],[220,378]],K.ink,{j:1.5});
+// big number card (the debt) floating
+poly([[1450,110],[1750,120],[1740,300],[1440,290]],K.paper,{shadow:P==='A',j:2,stroke:K.ink,lw:4});
+g.fillStyle=K.ink;g.font='bold 86px Georgia, serif';g.textAlign='center';g.fillText('₦3,800',1595,235);
+g.font='italic 30px Georgia, serif';g.fillText('Bayo owes',1595,170);
+// grain
+g.globalAlpha=.07;for(let i=0;i<9000;i++){g.fillStyle=R()>.5?'#000':'#fff';g.fillRect(R()*1920,R()*1080,2,2)}g.globalAlpha=1;
+// label
+document.title=P;
+</script>
