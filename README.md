@@ -26,3 +26,7 @@ The single offline test executes an in-memory SQLite query through Drizzle/bette
 Read [AGENTS.md](AGENTS.md), [project brief](docs/PROJECT.md), [architecture](docs/ARCHITECTURE.md), [current state](docs/CURRENT_STATE.md) and [deployment](docs/DEPLOYMENT.md). Branches: main, core, design, docs. Folder ownership is mandatory. Commit at task checkpoints and update HANDOVER.md at session end.
 
 Hosting is this VPS, never Vercel. HTTPS activation is blocked on an owner-supplied domain/DNS and administrator access. The sibling voice harness is private and outside this repository; never copy its recordings, results or secrets here.
+
+## Synthetic live evaluation
+
+See `docs/LIVE_EVAL_RESULTS.md` for the 25-case paid, opt-in evaluation, command, limitations and latest results. It uses synthetic data and does not confirm entries.
