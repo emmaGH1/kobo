@@ -84,7 +84,7 @@ Implemented on `channels` from core d87d525 in separate `../kobo-channels` check
 Landing v3 design preview and selected logo C are on `design`; the film and interactive chat currently use a scripted engine. Owner directed: retain a clearly labelled scripted film (including purchases, due dates and reminders), but connect Your turn to core's real API when available and then remove its scripted engine without breaking the film. The owner says core is adding these features; verify on integration. `src/app/og/` now renders a 1080×1350 sample summary PNG with next/og, including stock; `/og` serves sample data only, not private ledger data. Real-data aggregation, authorization and WhatsApp delivery remain unimplemented. The card currently uses bundled DejaVu Sans as an image-rendering font, not the landing Geist fonts. See HANDOVER.md for coordination.
 
 ## Docs lane
-Initial setup documents exist. Official rubric/submission requirements remain unverified.
+Judge-facing README drafted on `docs` from `main`. Main remains setup-only; integration and public demo URL are pending. The live synthetic eval is linked to `core`, not claimed as a main-branch feature. Official rubric/submission requirements remain unverified.
 
 ## Next single action
 Owner supplies the domain/subdomain and arranges the administrator activation step in docs/DEPLOYMENT.md. Do not start product features in this setup thread.
