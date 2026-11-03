@@ -79,7 +79,12 @@ export function createDemoHandler(options: DemoOptions) {
     try { const v: unknown = raw ? JSON.parse(raw) : {}; if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error(); body = v as Record<string, unknown>; }
     catch { return json({error:'Invalid JSON'},400); }
     let s = session(req);
+    // Design ReplyView language codes: 'pcm' (Pidgin) maps to the store's 'pg'.
+    const requestedLang = body.lang === 'pcm' ? 'pg' as const : body.lang === 'en' ? 'en' as const : undefined;
     if (operation === 'session' || operation === 'reset') {
+      if (s && operation === 'session') {
+        if (requestedLang) store.setLanguage(s.owner,'web',s.token,requestedLang,true);
+      }
       if (s && operation === 'session') return json({expiresAt:s.expires,remaining:DEMO_LIMIT-s.used,language:store.language(s.owner,'web',s.token)?.language === 'pg' ? 'pcm' : 'en'});
       // Only trust a proxy-provided IP when explicitly configured; otherwise one safe global bucket.
       const ip = options.ip?.(req) ?? (process.env.KOBO_TRUST_PROXY_IP === '1' ? req.headers.get('x-real-ip') ?? 'unknown' : 'unknown');
@@ -95,16 +100,24 @@ export function createDemoHandler(options: DemoOptions) {
         const expires = s?.expires ?? Date.now()+TTL;
         const used = s?.used ?? 0; // Reset never replenishes the paid-call allowance or TTL.
         db.prepare('INSERT INTO demo_sessions(token,owner,expires,used) VALUES(?,?,?,?)').run(hash(token),owner,expires,used);
+        if (requestedLang) store.setLanguage(owner,'web',hash(token),requestedLang,true);
         return {token,expires,used};
       }).immediate();
       if (!result) return limited();
-      const response = json({expiresAt:result.expires,remaining:DEMO_LIMIT-result.used,language:'en'});
+      const response = json({expiresAt:result.expires,remaining:DEMO_LIMIT-result.used,language:requestedLang==='pg'?'pcm':'en'});
       response.cookies.set(COOKIE,result.token,{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/api/demo',maxAge:Math.max(0,Math.floor((result.expires-Date.now())/1000))});
       return response;
     }
     if (!s) return json({error:'Demo session required'},401);
     if (operation === 'voice-sample') return json({error:'No consented server-owned voice sample is configured',reason:'unavailable'},503);
-    if (operation === 'skip-friday') {
+    if (operation === 'language') {
+      // Free and deterministic: the UI's English/Pidgin toggle is an explicit choice.
+      if (!requestedLang) return json({error:'Invalid language'},400);
+      store.setLanguage(s.owner,'web',s.token,requestedLang,true);
+      return json({language:body.lang,remaining:DEMO_LIMIT-s.used});
+    }
+    // 'clock' {to:'friday'} is the design adapter's name (DESIGN.md section 9); 'skip-friday' stays as an alias.
+    if (operation === 'skip-friday' || (operation === 'clock' && body.to === 'friday')) {
       const debts=outstandingDebts(store.events(s.owner)).filter(d=>d.dueDate).sort((a,b)=>a.dueDate!.localeCompare(b.dueDate!));
       if(!debts.length) return json({replies:[],remaining:DEMO_LIMIT-s.used,simulated:true});
       const now=Date.parse(`${debts[0].dueDate}T07:00:00Z`);

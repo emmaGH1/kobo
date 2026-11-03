@@ -92,3 +92,17 @@ it('rejects oversized input, malformed requests and concurrent processing withou
   expect((await call('message',{text:'Bayo paid 100'},c)).status).toBe(409);
   release();await first;expect(requestToolResponse).toHaveBeenCalledTimes(1);
 });
+it('accepts the design adapter clock and language operations without model calls',async()=>{
+  const {store,call,cookie,requestToolResponse}=setup();
+  const first=await call('session',{lang:'pcm'});expect((await first.json()).language).toBe('pcm');
+  const c=cookie(/kobo_demo=([a-f0-9]+)/.exec(first.headers.get('set-cookie')!)![1]);
+  const owner=(store.sqlite.prepare('SELECT owner,token FROM demo_sessions').get() as {owner:string;token:string});
+  expect(store.language(owner.owner,'web',owner.token)).toEqual({language:'pg',explicit:true});
+  expect((await call('language',{lang:'xx'},c)).status).toBe(400);
+  expect(await (await call('language',{lang:'en'},c)).json()).toEqual({language:'en',remaining:12});
+  expect(store.language(owner.owner,'web',owner.token)?.language).toBe('en');
+  const preview=await (await call('clock',{to:'friday'},c)).json();
+  expect(preview.simulated).toBe(true);expect(preview.replies[0].lang).toBe('en');expect(preview.replies[0].body).toContain('₦25,000');
+  expect((await call('clock',{to:'monday'},c)).status).toBe(404);
+  expect(requestToolResponse).not.toHaveBeenCalled();
+});
