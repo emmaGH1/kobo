@@ -1,0 +1,44 @@
+{
+ "M1": [
+  "This is Nkechi. She sells provisions in the market.",
+  "A customer takes a pack of Cabin biscuits, one thousand five hundred. \"I go pay you tomorrow.\" Nkechi nods. She's already serving the next person.",
+  "Bayo takes a bottle of groundnut oil, three thousand eight hundred. \"Make I bring the money Friday.\"",
+  "She'll write it down later.",
+  "By evening, it's ten people. Who took the oil? Was the biscuit paid for? How many cartons are left?",
+  "It's all in her head. Not because she's careless. Because selling and writing can't happen at the same time."
+ ],
+ "M2": [
+  "So I built something that writes while she sells."
+ ],
+ "M3": [
+  "It's called Kobo, and it lives in WhatsApp, where she already is.",
+  "On day one, she doesn't start from zero. She snaps a photo of her old notebook. Kobo reads the handwriting, lists who owes what, and waits for her to check it. One tap, and her whole notebook is in."
+ ],
+ "M4": [
+  "Now, when Bayo takes the oil, she just talks: \"Bayo carry one groundnut oil, three eight. E go pay Friday.\" Five seconds, and she's back with her customer.",
+  "Kobo reads it back. The oil, the amount, the date. Nothing goes in the book until she taps save. If a figure could mean two things, it asks instead of guessing."
+ ],
+ "M5": [
+  "And now Kobo remembers for her.",
+  "\"Who dey owe me?\" Everyone, biggest first, and how long they've owed.",
+  "\"How many oil remain?\" Every sale takes from her stock, every delivery adds to it, and Kobo warns her before she runs out.",
+  "\"Wetin sell pass this week?\" Her best products and her best customers.",
+  "A customer wants proof? Kobo makes a receipt she can forward in one tap.",
+  "And every night, her whole day on one page."
+ ],
+ "M6": [
+  "Friday morning. Nkechi didn't write anything down. She didn't have to.",
+  "Kobo tells her: Bayo's oil money is due today. Three thousand eight hundred.",
+  "It drafts a polite reminder she forwards to Bayo from her own phone. Kobo never talks to her customers. She does. She just doesn't have to remember anymore.",
+  "Bayo pays. One voice note, and the book is square."
+ ],
+ "M7": [
+  "Under the hood, it's Meta all the way through.",
+  "Muse Voice turns her voice notes into text, and Kobo gives it the names of her own customers and products, so \"Bayo\" and \"Cabin\" come out right.",
+  "Muse Spark reads every message and every notebook photo, and decides which tool to call: record a sale, record a payment, check a balance. It never touches the numbers. Plain code does the maths, and nothing is ever erased."
+ ],
+ "M8": [
+  "No more \"later\".",
+  "You sell. Kobo remembers."
+ ]
+}
