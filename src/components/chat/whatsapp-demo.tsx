@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, type ReactNode } from "react";
-import { RotateCcw, SendHorizontal, Mic, Plus } from "lucide-react";
+import { CalendarClock, RotateCcw, SendHorizontal, Mic, Plus } from "lucide-react";
 import { createChatBackend, type ChatInput } from "./backend";
 import { Incoming, Outgoing, PhoneShell, Typing, WA, type Msg } from "./phone";
 import type { Lang, ReplyView } from "./types";
@@ -46,14 +46,34 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
   async function run(input: ChatInput, shown?: Msg) {
     const choice = Boolean(input.action) || /^[123]$/.test((input.text ?? "").trim());
     if (busy || (atLimit && !choice)) return;
-    const time = clock();
+    const time = backend.clockLabel() ?? clock();
     setSheet(null);
     setMessages((prev) => [...settle(prev), ...(shown ? [{ ...shown, time }] : [])]);
     setBusy(true);
     try {
       const r = await backend.send(input);
       setRemaining(r.remaining);
-      setMessages((prev) => [...prev, ...r.replies.map((view) => ({ id: nid(), from: "kobo" as const, view, time: clock() }))]);
+      setMessages((prev) => [...prev, ...r.replies.map((view) => ({ id: nid(), from: "kobo" as const, view, time }))]);
+    } catch {
+      setMessages((prev) => [...prev, { id: nid(), from: "kobo", view: failure(lang), time: clock() }]);
+    } finally {
+      setBusy(false);
+    }
+  }
+  /** Demo only: jump to Friday morning and show what Kobo sends by itself (wired through backend.ts). */
+  async function skipToFriday() {
+    if (busy) return;
+    setSheet(null);
+    setBusy(true);
+    try {
+      const r = await backend.skipToFriday();
+      const time = backend.clockLabel() ?? clock();
+      setRemaining(r.remaining);
+      setMessages((prev) => [
+        ...settle(prev),
+        { id: nid(), from: "date", text: r.dateLabel },
+        ...r.replies.map((view) => ({ id: nid(), from: "kobo" as const, view, time })),
+      ]);
     } catch {
       setMessages((prev) => [...prev, { id: nid(), from: "kobo", view: failure(lang), time: clock() }]);
     } finally {
@@ -67,8 +87,10 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
     void run({ text: t }, { id: nid(), from: "you", text: t });
   };
   const tap = (b: { id: string; title: string }) => void run({ action: b.id }, { id: nid(), from: "you", text: b.title });
-  const voice = () =>
-    void run({ text: backend.sampleVoice.transcript, voice: true }, { id: nid(), from: "you", text: backend.sampleVoice.transcript, voice: true });
+  const voice = () => {
+    const sample = backend.sampleVoice;
+    if (sample) void run({ text: sample.transcript, voice: true }, { id: nid(), from: "you", text: sample.transcript, voice: true });
+  };
   async function reset() {
     const r = await backend.reset();
     setRemaining(r.remaining);
@@ -101,8 +123,8 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
         placeholder={atLimit ? "Demo finished" : "Message"}
         className="h-9 min-w-0 flex-1 rounded-full border border-black/10 bg-white px-3.5 text-[15px] outline-none placeholder:text-[#8696A0] focus-visible:ring-2 focus-visible:ring-[#007AFF]/40"
       />
-      {draft.trim() ? (
-        <button type="submit" aria-label="Send" className="flex size-9 shrink-0 items-center justify-center rounded-full" style={{ background: WA.ios }}>
+      {draft.trim() || !backend.sampleVoice ? (
+        <button type="submit" aria-label="Send" disabled={!draft.trim()} className="flex size-9 shrink-0 items-center justify-center rounded-full disabled:opacity-40" style={{ background: WA.ios }}>
           <SendHorizontal className="size-[18px] text-white" strokeWidth={2} />
         </button>
       ) : (
@@ -160,9 +182,11 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
           ))}
         </ul>
         <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3 font-sans text-[13px] text-ink-2">
-          <button type="button" onClick={voice} disabled={atLimit} className="h-10 rounded-full bg-ink px-4 text-paper disabled:opacity-40">
-            Send the sample voice note
-          </button>
+          {backend.sampleVoice && (
+            <button type="button" onClick={voice} disabled={atLimit} className="h-10 rounded-full bg-ink px-4 text-paper disabled:opacity-40">
+              Send the sample voice note
+            </button>
+          )}
           <div role="group" aria-label="Reply language" className="flex rounded-full border border-ink/25 p-0.5">
             {(["pcm", "en"] as const).map((l) => (
               <button key={l} type="button" aria-pressed={lang === l} onClick={() => switchLang(l)} className={`h-8 rounded-full px-3 ${lang === l ? "bg-ink text-paper" : ""}`}>
@@ -170,6 +194,15 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => void skipToFriday()}
+            disabled={busy}
+            title="Demo only: move the clock to Friday morning to see reminders"
+            className="flex h-10 items-center gap-1.5 rounded-full border border-ink/30 px-4 text-ink hover:border-ink disabled:opacity-40"
+          >
+            <CalendarClock className="size-4" strokeWidth={1.5} /> Skip to Friday
+          </button>
           <span className="tnum">{Math.max(remaining, 0)} of {backend.limit} messages left</span>
           <button type="button" onClick={reset} className="flex items-center gap-1 underline-offset-4 hover:underline">
             <RotateCcw className="size-3" strokeWidth={2} /> Reset
@@ -179,7 +212,11 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
       <div className="flex justify-center lg:col-span-5 lg:col-start-8">
         <PhoneShell label="Kobo in WhatsApp, try it yourself" scrollRef={scroller} composer={composer} overlay={overlay}>
           {messages.map((m) =>
-            m.from === "you" ? (
+            m.from === "date" ? (
+              <span key={m.id} className="msg-in mx-auto my-1 shrink-0 rounded-md bg-white/85 px-2 py-0.5 text-[12px] font-medium" style={{ color: WA.meta }}>
+                {m.text}
+              </span>
+            ) : m.from === "you" ? (
               <Outgoing key={m.id} m={m} transcriptNote="Sample transcript (audio not recorded yet)" />
             ) : (
               <Incoming key={m.id} view={m.view!} time={m.time} live={!m.settled && m.id === lastKobo} onTap={tap} onList={() => setSheet(m.view!)} />

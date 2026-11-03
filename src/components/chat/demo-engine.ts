@@ -7,6 +7,7 @@
  * Swap this module for a client of /api/demo/message when core provides it.
  */
 import type { Lang, ReplyView } from "./types";
+import { draftFooter, draftIntro, draftMessage, reminderBody, reminderButtons, reminderFooter, reminderHeading, type ReminderData } from "../demo/reminder-copy";
 
 export const CONFIRMATION_PROMPT = "1 save / 2 edit / 3 cancel";
 export const MESSAGE_LIMIT = 12;
@@ -272,36 +273,35 @@ function summaryView(s: DemoState, now: Date): ReplyView {
   };
 }
 
+/** Ledger facts for one customer's due reminder, in the shared 4.10 / 4.11 shape. */
+function reminderData(s: DemoState, c: Customer): ReminderData {
+  const d = c.due!;
+  return { lang: s.lang, shop: s.shop, customer: c.name, dueLabel: d.label, dueKobo: d.amount, totalOwedKobo: c.balance, item: d.item, soldOn: d.soldOn };
+}
+
 /** Kobo-initiated on the due date (a WhatsApp template in production). Nothing is sent to customers. */
 export function dueReminders(s: DemoState, now: Date): ReplyView[] {
-  const lang = s.lang;
   return s.customers
     .filter((c) => c.due && c.due.iso === iso(now) && c.balance > 0)
-    .map((c) => ({
-      lang,
-      kind: "buttons" as const,
-      body:
-        `*${pick(lang, "Reminder", "Reminder")}* · ${c.due!.label}\n\n` +
-        pick(
-          lang,
-          `${c.name} suppose pay *${formatNaira(c.due!.amount)}* today, for the ${c.due!.item} wey e carry on ${c.due!.soldOn}.\nE still owe you *${formatNaira(c.balance)}* for total.`,
-          `${c.name} is due to pay *${formatNaira(c.due!.amount)}* today, for the ${c.due!.item} taken on ${c.due!.soldOn}.\nTotal still owed: *${formatNaira(c.balance)}*.`,
-        ),
-      footer: pick(lang, "Kobo no dey message your customers by itself.", "Kobo never messages your customers itself."),
-      buttons: [
-        { id: `remind-draft:${c.id}`, title: pick(lang, "Draft message", "Draft a message") },
-        { id: `remind-paid:${c.id}`, title: pick(lang, "E don pay", "Already paid") },
-        { id: "remind-later", title: pick(lang, "Remind me later", "Remind me later") },
-      ],
-    }));
+    .map((c) => {
+      const d = reminderData(s, c);
+      const b = reminderButtons(s.lang);
+      return {
+        lang: s.lang,
+        kind: "buttons" as const,
+        body: `${reminderHeading(d)}\n\n${reminderBody(d).join("\n")}`,
+        footer: reminderFooter(s.lang),
+        buttons: [
+          { id: `remind-draft:${c.id}`, title: b.draft },
+          { id: `remind-paid:${c.id}`, title: b.paid },
+          { id: "remind-later", title: b.later },
+        ],
+      };
+    });
 }
 
 export function reminderDraft(s: DemoState, id: string): string {
-  const c = find(s, id);
-  const d = c.due!;
-  return s.lang === "pcm"
-    ? `Good morning ${c.name}, na ${s.shop}. Small reminder say the ${formatNaira(d.amount)} balance for the ${d.item} wey you carry on ${d.soldOn} dey due today. Thank you, God bless.`
-    : `Good morning ${c.name}, this is ${s.shop}. A small reminder that the ${formatNaira(d.amount)} balance for the ${d.item} you took on ${d.soldOn} is due today. Thank you.`;
+  return draftMessage(reminderData(s, find(s, id)));
 }
 
 function debtorsView(s: DemoState): ReplyView {
@@ -494,8 +494,8 @@ export function step(state: DemoState, input: DemoInput): DemoResult {
       {
         lang,
         kind: "text",
-        body: `${pick(lang, `Copy am send to ${find(s, id).name}:`, `Copy this and send it to ${find(s, id).name}:`)}\n\n> ${reminderDraft(s, id)}`,
-        footer: pick(lang, "Na you go send am. Nothing go out without you.", "You send it. Nothing goes out without you."),
+        body: `${draftIntro({ lang, customer: find(s, id).name })}\n\n> ${reminderDraft(s, id)}`,
+        footer: draftFooter(lang),
       },
     ]);
   }
