@@ -9,6 +9,8 @@ Group=builder
 WorkingDirectory=/home/builder/.t3/projects/kobo/kobo-app
 Environment=NODE_ENV=production
 Environment=NEXT_TELEMETRY_DISABLED=1
+# Trust X-Real-IP from Caddy on loopback only; next listens on 127.0.0.1.
+Environment=KOBO_TRUST_PROXY_IP=1
 Environment=HOME=/home/builder
 Environment=PATH=/home/builder/.local/share/pi-node/current/bin:/usr/local/bin:/usr/bin:/bin
 EnvironmentFile=-/home/builder/.t3/projects/kobo/kobo-app/.env.local

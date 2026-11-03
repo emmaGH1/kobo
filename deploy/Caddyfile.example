@@ -1,7 +1,10 @@
 # Replace kobo.example.com with the owner-approved domain before installing.
 kobo.example.com {
     encode zstd gzip
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:3000 {
+        # Pass the real visitor IP so demo rate limits are per visitor (needs KOBO_TRUST_PROXY_IP=1).
+        header_up X-Real-IP {remote_host}
+    }
     header {
         X-Content-Type-Options nosniff
         Referrer-Policy strict-origin-when-cross-origin
