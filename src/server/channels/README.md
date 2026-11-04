@@ -21,6 +21,8 @@ Keywords: owner customer names from `LedgerStore.customers`; optional explicit p
 
 ## Media/security
 
+ASR always uses direct Meta `https://api.meta.ai/v1/asr/transcribe` with `muse-voice-transcribe-1.0`; text `MODEL_BASE_URL`/`MODEL_ID` do not select its endpoint/model. `VOICE_API_KEY` takes precedence. Only a direct HTTPS `api.meta.ai` text base (including the default) permits fallback to `MODEL_API_KEY`; a gateway or invalid base without a dedicated voice key fails before conversion/ASR, never forwards the gateway credential. No `VOICE_BASE_URL`/`VOICE_MODEL_ID` override is currently implemented. Configure a direct Meta-authorized voice key privately; a valid WhatsApp Graph token does not authorize ASR.
+
 15 MB input, at most 600 seconds decoded audio, mono PCM16 WAV/24 kHz, 31 MB converted-file cap. FFmpeg timeout 45 s, FFprobe 10 s, Muse HTTP 180 s. Harness request is preserved: JSON multipart `request` with empty filename, WAV `audio`, direct Meta endpoint, optional languageBias/keywords, buffered top-level transcript. No automatic network retries or raw provider logging.
 
 Private `private/audio/clip-*` directories (or trusted `KOBO_AUDIO_DIR`) have mode 0700 and source files 0600. Callback scope deletes source and converted WAV on success/failure. Each new upload also sweeps own crash-orphan directories older than one hour; if traffic stops after a crash, an operator must remove old orphans (no background timer is installed). Never serve the directory publicly. Core pending/evidence transcript retention is unchanged.
