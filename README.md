@@ -24,7 +24,7 @@ WhatsApp is live on Meta's **test number**: the owner sent a text and received t
 
 - Turns a trader's text into a reviewable bookkeeping proposal; no money-changing entry is saved until the trader confirms it.
 - Shows who owes money, customer history and a daily summary. It can prepare reminders and draft messages; a draft is not an automatically sent WhatsApp reminder.
-- Supports notebook photo import and voice notes: **built and offline-tested; not yet verified live**. Review extracted names and amounts before saving.
+- Voice notes: **verified live on WhatsApp (5 Nov)**. Notebook photo import: **built and offline-tested; not yet verified live**. Review extracted names and amounts before saving.
 
 ## Meta models and the boundary
 
@@ -32,7 +32,7 @@ WhatsApp is live on Meta's **test number**: the owner sent a text and received t
 
 - **Live text:** Meta **Muse Spark Open**, through Vercel AI Gateway, interprets messages using validated tool calls. See [`src/server/model-provider.ts`](src/server/model-provider.ts), [`src/server/tool-calls.ts`](src/server/tool-calls.ts) and [`src/server/service.ts`](src/server/service.ts). Some explicit commands are handled deterministically without a model call.
 - **Notebook photos — built and offline-tested; not yet verified live:** Muse Spark Open reads submitted images through a validated tool-call boundary: [`src/server/notebook.ts`](src/server/notebook.ts), [`src/server/service.ts`](src/server/service.ts).
-- **Voice notes — built and offline-tested; not yet verified live:** Meta **Muse Voice Transcribe** transcribes audio, using the trader's own customer names as keyword hints. See [`src/server/voice/index.ts`](src/server/voice/index.ts) and [`src/server/channels/runtime.ts`](src/server/channels/runtime.ts). A voice transcript alone cannot confirm a save. The first live WhatsApp voice note test (4 Nov) returned an error reply instead of a review; the cause is being investigated.
+- **Voice notes, verified live on WhatsApp (5 Nov):** Meta **Muse Voice Transcribe** transcribes audio, using the trader's own customer names as keyword hints. See [`src/server/voice/index.ts`](src/server/voice/index.ts) and [`src/server/channels/runtime.ts`](src/server/channels/runtime.ts). A voice transcript alone cannot confirm a save.
 - **Deterministic money:** [`src/core/ledger.ts`](src/core/ledger.ts) and [`src/server/service.ts`](src/server/service.ts) calculate balances; [`src/server/ledger-store.ts`](src/server/ledger-store.ts) enforces the confirmation and ledger boundary.
 
 ## Evidence: live extraction evaluation
@@ -44,7 +44,7 @@ The latest documented live run passed **23 of 25 synthetic Pidgin/English cases 
 ```mermaid
 flowchart LR
   W[WhatsApp text / web chat] --> H[handleMessage]
-  V[Voice note: offline-tested] -. Muse Voice transcription .-> H
+  V[Voice note: verified live] -. Muse Voice transcription .-> H
   N[Notebook photo: offline-tested] -. Muse Spark extraction .-> R
   H --> S[Muse Spark Open: validated tool calls]
   S --> R[Trader review and confirmation]
@@ -94,7 +94,7 @@ pnpm dev
 | Reminder scheduler | `KOBO_REMINDER_CRON_TOKEN` |
 | WhatsApp | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_GRAPH_VERSION`, `WHATSAPP_OWNER_MAP_JSON` |
 
-WhatsApp needs Meta setup, an approved test recipient and public HTTPS; see [`docs/WHATSAPP-SETUP.md`](docs/WHATSAPP-SETUP.md). Local demo use does not require WhatsApp credentials. Voice and notebook live behavior has not yet been verified.
+WhatsApp needs Meta setup, an approved test recipient and public HTTPS; see [`docs/WHATSAPP-SETUP.md`](docs/WHATSAPP-SETUP.md). Local demo use does not require WhatsApp credentials. Voice notes are verified live; notebook photo import has not yet been verified live.
 
 Checks:
 
