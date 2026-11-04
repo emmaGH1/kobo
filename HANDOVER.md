@@ -1,5 +1,18 @@
 # Session handover
 
+## Core P0 — pending-question trap and promised dates (2026-11-04)
+Implementation checkpoint **5aabcb6** on `core`, starting from `origin/main` **2efbd8e**. Read requests now run independently of an unsaved amount/customer/date question and leave it unchanged. A separate new transaction gets a new review ID, with explicit unsaved/set-aside copy; the earlier proposal remains stored as `superseded`, its old buttons cannot write, and the trader can resend its details to return. No automatic resume/draft picker or schema change. Complete numeric dated Mama Chidi/Ada repro clauses now create deterministic reviews without model dependence. Code resolves remain Friday/pay Friday/she go pay Friday/monday in the future Lagos calendar; vague next week is independently blocked even if extraction omits/shortens the promise. Date questions offer the mentioned weekday when present, Tomorrow, Friday, No date (deduplicated); every answer makes a fresh review requiring a separate save. Friendly weekday/day/month trader copy, no ISO-format instruction. Legacy persisted date flags are cleared compatibly.
+
+**Final checks:** 212 offline tests passed, 1 opt-in paid live eval skipped; typecheck/lint/build/diff-check passed. Build retains the pre-existing metadataBase localhost warning. New regressions cover all three clarification types, exact landing #2 and sticky continuation, date wording, omitted evidence/date quotes, No date, stale/cross-owner/cross-sender/version safety and confirmation idempotency.
+
+**Real acceptance, not inferred:** production-build loopback `/api/demo/*`, fresh Pidgin session, all six exact landing chips in order, then Chinedu next week, summary/history and Ada tomorrow; all HTTP 200 with correct final replies. Second fresh English session ran exact Mama Chidi → summary → history → Ada sequence; all HTTP 200 and zero provider calls. Final Pidgin quota 12→9 (3 provider calls); English remained 12. No confirms, no money writes: 10 seeded ledger events across two owners, 0 web confirmations and 0 purchases. Existing seed balance is ₦33,500, so sample #2 previews ₦58,500, not a fabricated ₦33,500. Servers stopped and disposable databases removed. Simulated HTTPS Origin/manual Secure cookie over HTTP only, not external HTTPS/browser proof.
+
+**Do not hide initial failures:** the first diagnostic run used 5 provider reservations: exact sample #2 returned `Something spoil for my side. *I never save anything.* Try again small time.` with no review (specific upstream cause not captured); Ada tomorrow incorrectly became a date question because evidence omitted the date. After the deterministic/source-recovery changes, the full fresh-session regression passed. Total authorized provider invocations/reservations across both paid runs: 8, no automatic retry. Exact final replies, first failures, quotas and limits are recorded in **src/server/P0-DATE-ACCEPTANCE.md**. No secrets/raw provider payloads recorded.
+
+`AGENTS.md` remains the pre-existing unrelated dirty file, not staged or edited. No voice, channels, WhatsApp, UI or unrelated paths changed. No merge/deploy. Native-speaker Pidgin review and existing broader production/model-semantic limits remain open.
+
+---
+
 ## Channels lane — offline implementation, not live acceptance
 Branch `channels` from committed `core` d87d525, separate checkout `../kobo-channels`. Core's pre-existing uncommitted files were not copied or changed. Checkpoints pushed: 8526766 voice, dd33166 web endpoint, 021eac5 WhatsApp adapter; final safety/docs checkpoint follows these.
 
