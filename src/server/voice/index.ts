@@ -26,11 +26,22 @@ export async function withAudio<T>(bytes: Uint8Array, consume: (path: string) =>
   try { await writeFile(path, bytes, { mode: 0o600 }); return await consume(path); }
   finally { await rm(dir, { recursive: true, force: true }); }
 }
+/** ASR uses direct Meta, never the configured text gateway's credentials. */
+function voiceKey(): string | undefined {
+  const dedicated = process.env.VOICE_API_KEY?.trim();
+  if (dedicated) return dedicated;
+  try {
+    // Preserve the original direct-Meta setup, including its default base URL.
+    const textBase = new URL(process.env.MODEL_BASE_URL || 'https://api.meta.ai/v1');
+    if (textBase.origin === 'https://api.meta.ai' && !textBase.username && !textBase.password) return process.env.MODEL_API_KEY?.trim() || undefined;
+  } catch { /* Invalid text configuration cannot authorize direct ASR. */ }
+  return undefined;
+}
 export async function transcribe(path: string, keywords: string[], transport: typeof fetch = fetch): Promise<string> {
   // Only paths minted by withAudio, never a browser-supplied path or URL.
   if (dirname(dirname(resolve(path))) !== root() || !/^clip-[\w-]+$/.test(dirname(path).split('/').pop()!) || !['input'].includes(path.split('/').pop()!)) throw new Error('Untrusted audio reference');
-  const key = process.env.VOICE_API_KEY || process.env.MODEL_API_KEY;
-  if (!key) throw new Error('Voice is not configured');
+  const key = voiceKey();
+  if (!key) throw new Error('Voice is not configured. Set VOICE_API_KEY for direct Meta transcription.');
   const wav = join(dirname(path), 'converted.wav');
   try {
     await exec('ffmpeg', ['-nostdin','-hide_banner','-loglevel','error','-y','-protocol_whitelist','file,pipe','-format_whitelist','wav,mp3,ogg,mov,matroska,webm,aac','-i',path,'-map','0:a:0','-vn','-t','601','-ac','1','-ar','24000','-c:a','pcm_s16le','-map_metadata','-1',wav], { timeout: 45000, maxBuffer: 65536 });
