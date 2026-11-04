@@ -1,5 +1,24 @@
 # Session handover
 
+## Core — WhatsApp voice configuration investigation (2026-11-04)
+Implementation checkpoint **6e0dcf8** on `core`; no deployment, production edits, messages or new merge. User explicitly authorized this narrow voice/channel bug investigation.
+
+**Root cause, two lines:**
+- Confirmed configuration/routing defect: production has no `VOICE_API_KEY`; deployed ASR therefore selects the text gateway's `MODEL_API_KEY` but calls the fixed direct Meta ASR endpoint/model.
+- The exact failing stage of the reported note is **not proven**: the adapter suppresses dispatch errors, and neither an upstream status nor an actual media ID is retained in the inspected evidence.
+
+**Read-only production evidence:** `.env.local`, systemd inline environment and the live service process environment were inspected without displaying values. No voice/ASR-specific override variables were configured; `MODEL_BASE_URL`, `MODEL_ID`, `MODEL_API_KEY` and `WHATSAPP_ACCESS_TOKEN` were present. Text base was classified privately as a gateway, not direct Meta. Deployed voice source matched the pre-fix core source: unconditional key fallback, fixed `api.meta.ai` ASR and `muse-voice-transcribe-1.0`; text model/base do not configure ASR. No credentials, transcripts, sender/message/media IDs or audio were copied.
+
+Host timezone is UTC. Reported Nov 4 23:47 **Lagos** is Nov 4 **22:47 UTC**: the read-only inbox query found one entry at **22:47:15.870 UTC**, state `done`. That state proves only completion of the outgoing reply path, not successful media download/transcription (generic failures also become `done`). `journalctl -u kobo` was accessible but had **zero entries at 22:40–22:55 UTC**; latest entry was 22:09:40 UTC. The alternative 23:47 UTC interpretation was still in the future at inspection. No root/sudo journal access was used (passwordless sudo unavailable); ordinary journal reads succeeded. Existing catch blocks conceal the stage, so do not label this a captured Meta 401 or Graph failure.
+
+**Graph download live tested: NO.** A configured access token was present, but no known actual media ID was available from the inspected window/configuration or inbox schema (which stores no media ID/raw webhook). No speculative Graph call, token-debug call, ASR request or replay was made. Token freshness/permissions and Graph access remain unverified, not failed. No recording was downloaded or persisted.
+
+**Minimal fix:** dedicated `VOICE_API_KEY` wins; preserve fallback to `MODEL_API_KEY` only when the text base is direct HTTPS `api.meta.ai` (including its default). Gateway/invalid/insecure/credential-bearing bases without a dedicated key now fail before conversion/ASR; their text key is never forwarded to Meta. Updated `.env.example` and channel handoff to describe actual fixed ASR configuration. No Graph/send/core/ledger behavior changes. Operational resolution still requires a direct Meta-authorized voice key to be configured privately during a separately authorized production change; this code change alone does not restore an unconfigured live service.
+
+**Verification:** **229 offline tests passed, 1 opt-in live test skipped**; typecheck, lint, production build and diff-check passed. New synthetic/mocked regressions cover dedicated-key precedence over a gateway key, permitted direct/default fallback, rejected gateway/lookalike/insecure/userinfo/invalid bases, zero provider/core calls and private-file cleanup on missing voice configuration. Existing metadataBase localhost build warning remains. No paid/live transcription or phone acceptance claimed. `AGENTS.md` remains the unrelated dirty file, untouched/unstaged. Core already contained three local commits (including an existing design merge) before this task; this task performed no merge.
+
+---
+
 ## Core P0 — pending-question trap and promised dates (2026-11-04)
 Implementation checkpoint **5aabcb6** on `core`, starting from `origin/main` **2efbd8e**. Read requests now run independently of an unsaved amount/customer/date question and leave it unchanged. A separate new transaction gets a new review ID, with explicit unsaved/set-aside copy; the earlier proposal remains stored as `superseded`, its old buttons cannot write, and the trader can resend its details to return. No automatic resume/draft picker or schema change. Complete numeric dated Mama Chidi/Ada repro clauses now create deterministic reviews without model dependence. Code resolves remain Friday/pay Friday/she go pay Friday/monday in the future Lagos calendar; vague next week is independently blocked even if extraction omits/shortens the promise. Date questions offer the mentioned weekday when present, Tomorrow, Friday, No date (deduplicated); every answer makes a fresh review requiring a separate save. Friendly weekday/day/month trader copy, no ISO-format instruction. Legacy persisted date flags are cleared compatibly.
 
