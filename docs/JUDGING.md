@@ -18,7 +18,7 @@
 The latest documented live synthetic extraction check passed **23/25 (92.0%)**, with two failures and zero errors. It was one run, on in-memory databases, with no confirmations; the underlying causes of the two failures were not captured. Results vary, and the check is **not** a production accuracy or safety benchmark. See [`LIVE_EVAL_RESULTS.md`](LIVE_EVAL_RESULTS.md) for the authoritative record.
 
 - WhatsApp: owner verified a real text and the reply “Nobody owes you right now” on Meta's test number. Only approved recipients can use that number.
-- Voice notes and notebook photo import: built and offline-tested; not yet verified live.
+- Voice notes and notebook photo import: built and offline-tested; not yet verified live. The first live WhatsApp voice note test (4 Nov) returned an error reply; under investigation. The demo film's voice note scene is a labelled reenactment.
 - A drafted reminder is not a claim that a message was automatically sent.
 - Don't use real customer data in the demo. The [privacy policy](https://trykobo.xyz/privacy) explains storage, including unconfirmed content.
 
