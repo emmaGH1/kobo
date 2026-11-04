@@ -155,4 +155,101 @@ describe("API backend (core /api/demo/*)", () => {
     const { f } = fake({ session: () => [200, {}], clock: () => [200, { replies: [], remaining: 12, simulated: true }] });
     expect((await createApiBackend("en", f).skipToFriday()).replies[0].body).toContain("Nothing is due today");
   });
+
+  describe("the AI-replies-left counter", () => {
+    const memory = () => {
+      const m = new Map<string, string>();
+      return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k), m };
+    };
+    const KEY = "kobo_demo_until";
+    const later = () => Date.now() + 20 * 60_000;
+
+    it("reads what is left from the session response itself, before any reply", async () => {
+      const { f } = fake({
+        session: () => [200, { remaining: 7, expiresAt: later() }],
+        message: () => [200, { replies: [view("ok")] }], // a reply without a count keeps core's last number
+      });
+      const b = createApiBackend("en", f, "/api/demo", memory());
+      expect((await b.send({ text: "hi" })).remaining).toBe(7);
+    });
+
+    it("takes the count from every reply", async () => {
+      const { f } = fake({
+        session: () => [200, { remaining: 12, expiresAt: later() }],
+        message: (_b, n) => [200, { replies: [view("ok")], remaining: 12 - n }],
+        action: () => [200, { replies: [view("saved")], remaining: 10 }], // taps are free: unchanged
+      });
+      const b = createApiBackend("en", f, "/api/demo", memory());
+      expect((await b.send({ text: "a" })).remaining).toBe(11);
+      expect((await b.send({ text: "b" })).remaining).toBe(10);
+      expect((await b.send({ action: "save:x" })).remaining).toBe(10);
+    });
+
+    it("on reload, asks the server only if this visitor already started a session, and shows its number", async () => {
+      const store = memory();
+      store.m.set(KEY, String(later()));
+      const { f, calls } = fake({ session: () => [200, { remaining: 10, expiresAt: later() }], message: () => [200, { replies: [view("ok")], remaining: 9 }] });
+      const b = createApiBackend("pcm", f, "/api/demo", store);
+      expect(await b.sync()).toBe(10);
+      expect(calls.map((c) => c.op)).toEqual(["session"]);
+      await b.send({ text: "hi" });
+      expect(calls.map((c) => c.op)).toEqual(["session", "message"]); // the session is reused, not re-created
+    });
+
+    it("never creates a session for a first-time visitor just by loading the page", async () => {
+      const { f, calls } = fake({ session: () => [200, { remaining: 12 }] });
+      expect(await createApiBackend("pcm", f, "/api/demo", memory()).sync()).toBe(12);
+      expect(await createApiBackend("pcm", f, "/api/demo", null).sync()).toBe(12); // storage blocked
+      expect(calls).toEqual([]);
+    });
+
+    it("ignores an expired session flag", async () => {
+      const store = memory();
+      store.m.set(KEY, String(Date.now() - 1000));
+      const { f, calls } = fake({ session: () => [200, { remaining: 12 }] });
+      expect(await createApiBackend("pcm", f, "/api/demo", store).sync()).toBe(12);
+      expect(calls).toEqual([]);
+    });
+
+    it("remembers the expiry when it starts a session and when it resets, and forgets it on a 401", async () => {
+      const store = memory();
+      const until = later();
+      const { f } = fake({
+        session: () => [200, { remaining: 12, expiresAt: until }],
+        message: (_b, n) => (n === 1 ? [401] : [200, { replies: [view("ok")], remaining: 11 }]),
+        reset: () => [200, { remaining: 11, expiresAt: until + 1 }],
+      });
+      const b = createApiBackend("en", f, "/api/demo", store);
+      await b.send({ text: "a" }); // session, 401, session again
+      expect(store.m.get(KEY)).toBe(String(until));
+      await b.reset();
+      expect(store.m.get(KEY)).toBe(String(until + 1));
+    });
+
+    it("reset keeps core's number (it never refills the allowance)", async () => {
+      const { f } = fake({ session: () => [200, { remaining: 12, expiresAt: later() }], reset: () => [200, { remaining: 4 }] });
+      const b = createApiBackend("en", f, "/api/demo", memory());
+      expect(await b.reset()).toEqual({ remaining: 4 });
+    });
+
+    it("survives a refused or failed session check on load by keeping the last known count", async () => {
+      const store = memory();
+      store.m.set(KEY, String(later()));
+      const { f } = fake({ session: () => [500] });
+      expect(await createApiBackend("en", f, "/api/demo", store).sync()).toBe(12);
+    });
+
+    it("scripted backend reports its own count", async () => {
+      const b = createScriptedBackend();
+      await b.send({ text: "Who dey owe me" });
+      expect(await b.sync()).toBe(b.limit - 1);
+    });
+
+    it("the page loads the count from the adapter and labels it AI replies left", () => {
+      const ui = readFileSync(join(__dirname, "whatsapp-demo.tsx"), "utf8");
+      expect(ui).toMatch(/backend\.sync\(\)/);
+      expect(ui).toContain("AI replies left");
+      expect(ui).not.toMatch(/messages left/);
+    });
+  });
 });
