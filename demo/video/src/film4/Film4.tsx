@@ -2,6 +2,7 @@ import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, interpolate, static
 import type { CSSProperties, ReactNode } from "react";
 import "../compiled.css";
 import words from "../v4words.json";
+import durs from "../v4dur.json";
 import { KoboBubble, TraderBubble, type ReplyView } from "../../../../src/components/demo";
 import { KoboLogo, KoboMark } from "../../../../src/components/kobo/logo";
 import { WaPhone } from "../film2/waphone";
@@ -14,9 +15,11 @@ const PAPER = "#F4EEE3";
 export const BLUR_NAMES = false;
 
 /* ---------- voice timeline ---------- */
-const START: Record<string, number> = { S01: 30, S02: 870, S03: 1110, S04: 1785, S05: 2120, S06: 2270, S07: 2560, S08: 2795, S09: 2975, S10: 3440 };
-const DUR: Record<string, number> = { S01: 25.18, S02: 7.39, S03: 21.42, S04: 7.4, S05: 4.09, S06: 8.62, S07: 6.82, S08: 4.86, S09: 14.52, S10: 1.57 };
-export const film4Frames = 3570;
+const DUR: Record<string, number> = durs as Record<string, number>;
+const GAP: Record<string, number> = { S01: 30, S02: 50, S03: 24, S04: 26, S05: 105, S06: 28, S07: 28, S08: 30, S09: 36, S10: 28 };
+const START: Record<string, number> = {};
+{ let t = 0; let prev = ""; for (const k of Object.keys(GAP)) { t += (prev ? Math.round(DUR[prev] * 30) : 0) + GAP[k]; START[k] = t; prev = k; } }
+export const film4Frames = START.S10 + Math.round(DUR.S10 * 30) + 120;
 type WT = [string, number][];
 const W = words as Record<string, WT>;
 const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -32,7 +35,7 @@ const end = (k: string) => START[k] + Math.round(DUR[k] * FPS);
 const ease = (f: number, a: number, d: number, from = 0, to = 1) => tw(f, a, d, from, to, easeOut);
 function Rise({ f, at, children, style, dist = 26 }: { f: number; at: number; children: ReactNode; style?: CSSProperties; dist?: number }) {
   const p = sp(f, at, { damping: 20, stiffness: 140 });
-  return <div style={{ opacity: Math.min(1, p * 1.4), transform: `translateY(${(1 - p) * dist}px)`, ...style }}>{children}</div>;
+  return <div style={{ opacity: Math.min(1, p * 1.4), transform: `translateY(${(1 - p) * dist}px)`, filter: p < 0.98 ? `blur(${(1 - p) * 10}px)` : undefined, ...style }}>{children}</div>;
 }
 function Serif({ children, size = 64, color = C.ink, style }: { children: ReactNode; size?: number; color?: string; style?: CSSProperties }) {
   return <div style={{ fontFamily: SERIF, fontSize: size, lineHeight: 1.04, letterSpacing: "-0.03em", color, ...style }}>{children}</div>;
@@ -55,7 +58,8 @@ function Captions({ f }: { f: number }) {
     if (cur.length) phrases.push(cur);
     const ph = phrases.find((p, i) => t >= p[0][1] - 0.08 && (i === phrases.length - 1 || t < phrases[i + 1][0][1] - 0.08));
     if (!ph) return null;
-    const fix = (w: string) => w.replace(/^Cobo/, "Kobo").replace(/^Bio/, "Bayo").replace(/^rise/, "rice").replace(/^pigeon/, "pidgin").replace(/^tricobo/, "trykobo").replace(/^\$3$/, "“three").replace(/^\.8,?$/, "eight”").replace(/^\$/, "₦");
+    const FIX: Record<string, Record<string, string>> = { S03: { "45": "₦45,000", ",000,": "", "20,": "₦20,000," }, S04: { bio: "Bayo", COA: "Kobo", "3": "₦3,800", ",800": "", "38": "₦38,000", ",000,": "", three: "“three", eight: "eight”" }, S05: { who: "“who", they: "dey", "me": "me”", big: "biggest", as: "" }, S06: { Cobor: "Kobo" }, S08: { tricobo: "trykobo" }, S09: { pigeon: "pidgin" }, S10: { "sails,": "sales," } };
+    const fix = (w: string) => (FIX[k] && w in FIX[k] ? FIX[k][w] : w.replace(/^Cobo/, "Kobo"));
     return (
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 42, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
         <div style={{ padding: "10px 22px", borderRadius: 14, background: "rgba(45,44,42,0.86)", fontFamily: SANS, fontWeight: 500, fontSize: 30, color: "#FBF7EF", letterSpacing: "-0.005em" }}>
@@ -87,7 +91,7 @@ function Head({ draw }: { draw: number }) {
   );
 }
 function Problem({ f }: { f: number }) {
-  const cardAt = [wf("S01", "rise"), wf("S01", "cartons"), ...[0, 1, 2, 3, 4, 5].map((i) => wf("S01", "remember") + 8 + i * 9)];
+  const cardAt = [wf("S01", "rice"), wf("S01", "cartons"), ...[0, 1, 2, 3, 4, 5].map((i) => wf("S01", "remember") + 8 + i * 9)];
   const headAt = wf("S01", "carry") - 6;
   const mixAt = wf("S01", "mixed");
   const slipAt = wf("S01", "slip");
@@ -98,7 +102,7 @@ function Problem({ f }: { f: number }) {
   const total = DEBTS.reduce((s, d, i) => s + (f >= cardAt[i] ? d[1] * ease(f, cardAt[i], 14) : 0), 0);
   const gone = ease(f, goneAt, 40);
   const qs: [string, string][] = [["who", "Who took what?"], ["much", "How much?"], ["promised", "When will they pay?"]];
-  const exit = 1 - ease(f, 835, 40);
+  const exit = 1 - ease(f, end("S01") + 12, 34);
   return (
     <AbsoluteFill style={{ opacity: exit }}>
       <div style={{ position: "absolute", left: 120, top: 92 }}>
@@ -198,7 +202,7 @@ function PhotoBubble({ blur }: { blur: boolean }) {
 
 function Product({ f }: { f: number }) {
   // ---- key frames ----
-  const kobo = wf("S02", "cobo");
+  const kobo = wf("S02", "kobo");
   const wa = wf("S02", "whatsapp");
   const tell = wf("S02", "tell");
   const s3 = START.S03, s4 = START.S04, s5 = START.S05, s6 = START.S06, s7 = START.S07;
@@ -509,9 +513,30 @@ function EndCard({ f }: { f: number }) {
   );
 }
 
+/* ================= transitions ================= */
+function InkWipe({ f, at }: { f: number; at: number }) {
+  if (f < at || f > at + 50) return null;
+  const grow = ease(f, at, 20);
+  const fade = 1 - ease(f, at + 26, 22);
+  return <div style={{ position: "absolute", left: 960 - 1200 * grow, top: 540 - 1200 * grow, width: 2400 * grow, height: 2400 * grow, borderRadius: "50%", background: C.lav, opacity: fade, zIndex: 50 }} />;
+}
+function BarWipe({ f, at }: { f: number; at: number }) {
+  if (f < at || f > at + 30) return null;
+  const x = interpolate(f, [at, at + 30], [-2100, 2100], { easing: easeOut });
+  return <div style={{ position: "absolute", top: 0, bottom: 0, left: x, width: 1900, background: `linear-gradient(90deg, rgba(146,169,225,0) 0%, ${C.lav} 30%, ${C.lav} 70%, rgba(146,169,225,0) 100%)`, zIndex: 60 }} />;
+}
+
 /* ================= audio ================= */
 const SPANS = Object.keys(START).map((k) => [START[k], end(k)]);
 const talking = (f: number) => SPANS.some(([a, b]) => f > a - 10 && f < b + 6);
+function Bed({ src, from, to, base, loop }: { src: string; from: number; to: number; base: number; loop?: boolean }) {
+  const len = to - from;
+  return (
+    <Sequence from={from} durationInFrames={len}>
+      <Audio src={staticFile(src)} loop={loop} volume={(x) => interpolate(x, [0, 45, len - 45, len], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) * (talking(x + from) ? base * 0.42 : base)} />
+    </Sequence>
+  );
+}
 function Pops() {
   const at = [START.S03 + 0, wf("S03", "friday") + 4, wf("S03", "lays") - 4, wf("S03", "one") + 2, wf("S04", "bio") + 6, wf("S04", "guess") - 2, end("S04") + 4, end("S04") + 62, START.S05 + 4, wf("S05", "everyone") - 2, wf("S06", "reminds"), wf("S06", "drafts") - 2, wf("S07", "snap") + 8];
   return <>{at.map((a, i) => <Sequence key={i} from={a} durationInFrames={10}><Audio src={staticFile("v4/pop.wav")} volume={0.22} /></Sequence>)}</>;
@@ -523,8 +548,11 @@ export function Film4() {
     <AbsoluteFill style={{ background: PAPER }}>
       <style>{`.kl svg{width:100%;height:auto;display:block}`}</style>
       <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 40%, rgba(255,253,246,0.9) 0%, rgba(244,238,227,0) 60%, rgba(214,202,182,0.45) 100%)" }} />
-      {f < 920 && <Problem f={f} />}
-      {f >= 840 && f < START.S08 + 40 && <Product f={f} />}
+      {f < START.S02 + 50 && <Problem f={f} />}
+      {f >= START.S02 - 30 && f < START.S08 + 40 && <Product f={f} />}
+      <InkWipe f={f} at={START.S02 - 26} />
+      <BarWipe f={f} at={START.S08 - 14} />
+      <BarWipe f={f} at={START.S09 - 14} />
       <Proof f={f} />
       <Hood f={f} />
       <EndCard f={f} />
@@ -535,13 +563,12 @@ export function Film4() {
           <Audio src={staticFile(`v4/vo_${String(i + 1).padStart(2, "0")}.wav`)} volume={1} />
         </Sequence>
       ))}
-      {/* music: one bed that opens, then a groove that carries the product, ducked under the voice */}
-      <Sequence from={0} durationInFrames={980}>
-        <Audio src={staticFile("music/opening-africa.mp3")} volume={(x) => interpolate(x, [0, 20, 880, 980], [0, 1, 1, 0], { extrapolateRight: "clamp" }) * (talking(x) ? 0.16 : 0.34)} />
-      </Sequence>
-      <Sequence from={860} durationInFrames={film4Frames - 860}>
-        <Audio src={staticFile("music/groove-afro-vibration.mp3")} loop volume={(x) => interpolate(x, [0, 90, film4Frames - 860 - 70, film4Frames - 860], [0, 1, 1, 0], { extrapolateRight: "clamp" }) * (talking(x + 860) ? 0.13 : 0.3)} />
-      </Sequence>
+      {/* music: a bed per chapter, 1.5s crossfades, ducked under the voice */}
+      <Bed src="music/opening-africa.mp3" from={0} to={START.S02 + 20} base={0.34} />
+      <Bed src="music/percussions.mp3" from={START.S02 - 30} to={START.S03 + 10} base={0.4} />
+      <Bed src="music/groove-afro-vibration.mp3" from={START.S03 - 20} to={START.S05 + 30} base={0.3} />
+      <Bed src="music/pulse-tutorial.mp3" from={START.S05} to={START.S08 + 10} base={0.3} loop />
+      <Bed src="music/soft-loop.mp3" from={START.S08 - 20} to={film4Frames} base={0.32} />
       <Pops />
     </AbsoluteFill>
   );
