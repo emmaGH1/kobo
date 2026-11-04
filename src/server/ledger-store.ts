@@ -24,6 +24,8 @@ export interface EntryDraft {
   dueDate?: string;
   /** Unresolved source date, tracked per entry until answered. */
   needsDueDate?: boolean;
+  /** Literal unresolved promise, retained for date choices without inventing a day. */
+  dueDateSource?: string;
   /** Candidate IDs frozen at proposal time; selection remains explicit. */
   customerCandidates?: string[];
 }
@@ -105,7 +107,7 @@ export class LedgerStore {
     const flags: string[] = [];
     if (!entries.length) flags.push('No ledger entries supplied');
     for (const entry of entries) {
-      if (entry.needsDueDate) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
+      if (entry.needsDueDate) flags.push('Which day will they pay?');
       if (entry.customerCandidates?.length) flags.push('Choose the customer or confirm a new customer.');
       if (entry.kind === 'stock_movement') {
         if(entries.length!==1) flags.push('Stock movements need a separate review');

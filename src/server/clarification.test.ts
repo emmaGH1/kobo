@@ -134,7 +134,8 @@ it('keeps Pidgin through a numeric answer, and an explicit language choice wins 
     expect(store.language('a', 'web', 's')).toEqual({ language: 'en', explicit: true });
     // Even a clearly Pidgin message does not override an explicit choice.
     const again = await service.handleMessage({ ...ctx, text: 'Abeg wetin I write?' });
-    expect(again.replyText.startsWith('Shall I write it like this?')).toBe(true);
+    expect(again.replyText).toContain('I set the earlier draft aside without saving it.');
+    expect(again.replyText).toContain('I heard'); // unrelated text is processed separately, in the explicit language
     expect((await service.handleMessage({ ...ctx, text: 'pidgin' })).replyText).toBe('Okay. I go reply you for Pidgin.');
     expect((await service.handleMessage({ ...ctx, text: '3' })).replyText).toBe('I no save am. Nothing change for your book.');
     // Language is stored per owner and sender, not shared.
@@ -151,7 +152,8 @@ it('asks a missing amount with the design wording and never invents one', async 
     expect(r.interactive).toBeUndefined();
     await expect(service.confirm({ ...ctx, pendingId: r.pending!.id })).rejects.toThrow();
     const pidgin = await service.handleMessage({ ...ctx, text: 'wetin Bayo go pay' });
-    expect(pidgin.replyText).toBe('How much Bayo pay? Type am or talk am.\n\nI never save anything.');
+    expect(pidgin.replyText).toContain('I keep the earlier draft aside. I never save am.');
+    expect(pidgin.replyText.endsWith('How much Bayo pay? Type am or talk am.\n\nI never save anything.')).toBe(true);
   } finally { store.close(); }
 });
 

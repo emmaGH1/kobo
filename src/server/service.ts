@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Reminders } from './reminders';
 import { Inventory } from './inventory';
+import { resolveDueDate, paymentPromise, dateOptions, noDate, dateAnswerShape } from './due-date';
 import { extractNotebook, notebookImage } from './notebook';
 import { add, balances, dailySummary, debtors, history, lastPaidAt, owingDays, type Customer } from '../core/ledger';
 import { parseNaira, sourceHasSpan } from '../core/naira';
@@ -20,17 +21,6 @@ export const tools: ToolRequest['tools'] = [
   { type: 'function', name: 'get_balance', description: 'Get a customer balance.', parameters: { type: 'object', properties: { customer_name: { type: 'string' } }, required: ['customer_name'], additionalProperties: false } },
   { type: 'function', name: 'daily_summary', description: 'Get today’s sales and collections.', parameters: empty },
 ];
-function resolveDueDate(text: string): string | undefined {
-  if (validDueDate(text)) return text;
-  const relative = text.toLocaleLowerCase();
-  const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  const weekday = weekdays.indexOf(relative.replace(/^next\s+/, ''));
-  if (relative !== 'today' && relative !== 'tomorrow' && weekday < 0) return;
-  const lagos = new Date(Date.now() + 3600000);
-  const delta = weekday >= 0 ? ((weekday - lagos.getUTCDay() + 6) % 7) + 1 : relative === 'tomorrow' ? 1 : 0;
-  const day = Date.UTC(lagos.getUTCFullYear(), lagos.getUTCMonth(), lagos.getUTCDate() + delta);
-  return new Date(day).toISOString().slice(0, 10);
-}
 function closeName(a: string, b: string): boolean {
   a = a.trim().toLocaleLowerCase(); b = b.trim().toLocaleLowerCase();
   if (a === b || Math.abs(a.length - b.length) > 1 || Math.min(a.length, b.length) < 3) return false;
@@ -43,7 +33,8 @@ function closeName(a: string, b: string): boolean {
   }
   return edits + Number(i < a.length || j < b.length) <= 1;
 }
-const DATE_FLAG = 'Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.';
+const DATE_FLAG = 'Which day will they pay?';
+const LEGACY_DATE_FLAG = 'Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.';
 const CUSTOMER_FLAG = 'Choose the customer or confirm a new customer.';
 /** Review commands; an answer to an open question must never be mistaken for one of these. */
 const COMMAND_WORDS = /^(?:1 save|2 edit|3 cancel)$/i;
@@ -89,7 +80,7 @@ function render(p: Pending, store: LedgerStore, lang: Language): MessageReply {
   }
   const customers = store.customers(p.ownerId);
   const queue = questionsOf(p, store);
-  const summary = p.entries.map(e => `${e.kind}: ${subjectOf(e, customers)}${!e.customerId && e.customerName && e.kind !== 'purchase' ? ' (new customer)' : ''} — ${e.amountKobo ? formatNaira(e.amountKobo) : 'unknown amount'}${e.dueDate ? `, due ${e.dueDate}` : ''}${e.calculatedFromBalance ? ' (calculated as sale total minus stated unpaid amount)' : ''}`).join('\n');
+  const summary = p.entries.map(e => `${e.kind}: ${subjectOf(e, customers)}${!e.customerId && e.customerName && e.kind !== 'purchase' ? ' (new customer)' : ''} — ${e.amountKobo ? formatNaira(e.amountKobo) : 'unknown amount'}${e.dueDate ? `, due ${copy.traderDate(e.dueDate)}` : ''}${e.calculatedFromBalance ? ' (calculated as sale total minus stated unpaid amount)' : ''}`).join('\n');
   const head = queue[0];
   let text: string;
   let interactive: MessageReply['interactive'];
@@ -104,7 +95,8 @@ function render(p: Pending, store: LedgerStore, lang: Language): MessageReply {
       if (head.options.length) options = [...head.options.map((c, i) => ({ label: formatNaira(c), value: String(i + 1) })), { label: copy.anotherAmount(lang), value: String(head.options.length + 1) }];
     } else if (head.type === 'date') {
       openFlag = DATE_FLAG;
-      text = copy.dateQuestion(lang, name);
+      options = dateOptions(entry.dueDateSource ?? p.rawInput);
+      text = `${copy.dateQuestion(lang, name)}\n${options.map(o => `${o.value}. ${o.label}`).join('\n')}`;
     } else {
       openFlag = CUSTOMER_FLAG;
       const bal = balances(store.events(p.ownerId));
@@ -113,7 +105,7 @@ function render(p: Pending, store: LedgerStore, lang: Language): MessageReply {
     }
     if (queue.length > 1) text += `\n${lang === 'pg' ? `_${queue.length - 1} more question${queue.length > 2 ? 's' : ''} dey after this._` : `_${queue.length - 1} more question${queue.length > 2 ? 's' : ''} after this._`}`; // not in design
     text += `\n\n${copy.questionFooter(lang)}`;
-    interactive = options && copy.questionInteractive(p.id, text.replace(`\n\n${copy.questionFooter(lang)}`, ''), lang, options, head.type === 'customer');
+    interactive = options && copy.questionInteractive(p.id, text.replace(`\n\n${copy.questionFooter(lang)}`, ''), lang, options, head.type === 'customer' || options.length > 3);
   } else {
     const bal = balances(store.events(p.ownerId));
     const groups = new Map<string, copy.ReviewGroup & { ok: boolean; delta: number }>();
@@ -235,6 +227,17 @@ export class Service implements BookkeepingService {
     const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: `${p.rawInput}\nClarification: ${clarification}`, entries, flags };
     return render(this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft), this.store, lang);
   }
+  /** Separate messages never answer the old question. Keep its proposal as superseded evidence,
+   * and make only the new owner-bound version actionable. No ledger write occurs here. */
+  private proposeMessage(p: Pending | undefined, input: { channel: string; senderId: string }, draft: PendingDraft, lang: Language): MessageReply {
+    const next = p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft);
+    const reply = render(next, this.store, lang);
+    if (p?.status !== 'review') return reply;
+    const note = copy.separateReview(lang);
+    const body = reply.interactive && `${note}\n\n${reply.interactive.body}`;
+    // Never hide review details to make room for the separate-message notice.
+    return { ...reply, replyText: `${note}\n\n${reply.replyText}`, interactive: body && body.length <= 1024 && reply.interactive ? { ...reply.interactive, body } : undefined };
+  }
   /** Applies one answer to the head question as a replacement review, or returns undefined if it is not an answer. */
   private answer(p: Pending, text: string, input: { channel: string; senderId: string }, lang: Language): MessageReply | undefined {
     const q = questionsOf(p, this.store)[0];
@@ -257,10 +260,13 @@ export class Service implements BookkeepingService {
       return this.replace(p, input, text, note, entries, flags, lang);
     }
     if (q.type === 'date') {
-      const dueDate = resolveDueDate(text);
-      if (!dueDate) return;
+      const options = dateOptions(p.entries[q.entry].dueDateSource ?? p.rawInput);
+      const selected = /^[1-9]\d*$/.test(text) ? options[Number(text) - 1]?.day : text;
+      if (!selected) return;
+      const dueDate = resolveDueDate(selected);
+      if (!dueDate && !noDate(selected)) return dateAnswerShape(text) ? render(p, this.store, lang) : undefined;
       const entries = p.entries.map((e, i) => i === q.entry ? { ...e, dueDate, needsDueDate: false } : e);
-      return this.replace(p, input, text, text, entries, p.flags.filter(f => f !== DATE_FLAG || entries.some(e => e.needsDueDate)), lang);
+      return this.replace(p, input, text, selected, entries, p.flags.filter(f => ![DATE_FLAG, LEGACY_DATE_FLAG].includes(f) || entries.some(e => e.needsDueDate)), lang);
     }
     const isNew = /^new customer$/i.test(text) || (/^[1-9]\d*$/.test(text) && Number(text) === q.candidates.length + 1);
     const selected = isNew ? undefined : /^[1-9]\d*$/.test(text) ? q.candidates[Number(text) - 1] : q.candidates.find(c => c.name.toLocaleLowerCase() === text.toLocaleLowerCase());
@@ -337,20 +343,40 @@ export class Service implements BookkeepingService {
       return this.cancel(action);
     }
     if (/^(who dey owe me|who owes? me|debtors)\??$/i.test(text)) return this.debtorsReply(lang);
-    if (!p || p.status === 'editing') {
-      if(/^(?:stock|stock left|inventory)\??$/i.test(text))return {replyText:copy.stockText(lang,new Inventory(this.store.sqlite).rows(this.ownerId))};
-      if(/^(?:insights|this week|weekly summary)\??$/i.test(text))return this.insightsReply(lang);
-      if (/^(?:how market(?: today)?|day summary|daily summary|summary|my book today)\??$/i.test(text)) return this.summaryReply(lang);
-      const who = /^(?:show(?: me)?\s+)?(.+?)\s+(?:full\s+)?(?:history|book)$/i.exec(text)?.[1] ?? /^(?:show me\s+)?(?:full\s+)?history\s+(?:of\s+|for\s+)?(.+)$/i.exec(text)?.[1];
-      if (who) return this.historyFor(who.replace(/^(?:me\s+)/i, ''), lang);
-      const days = /^(?:how many days (.+?) dey owe me|how (?:many days|long) (?:has )?(.+?) (?:owed|owe)(?: me)?)\??$/i.exec(text);
-      if (days) return this.historyFor(days[1] ?? days[2], lang);
-    }
-    if (p && p.status !== 'editing') return render(p, this.store, lang);
+    // Read requests are independent of any unsaved review/question and leave it unchanged.
+    if(/^(?:stock|stock left|inventory)\??$/i.test(text))return {replyText:copy.stockText(lang,new Inventory(this.store.sqlite).rows(this.ownerId))};
+    if(/^(?:insights|this week|weekly summary)\??$/i.test(text))return this.insightsReply(lang);
+    if (/^(?:how market(?: today)?|day summary|daily summary|summary|my book today)\??$/i.test(text)) return this.summaryReply(lang);
+    const who = /^(?:show(?: me)?\s+)?(.+?)\s+(?:full\s+)?(?:history|book)$/i.exec(text)?.[1] ?? /^(?:show me\s+)?(?:full\s+)?history\s+(?:of\s+|for\s+)?(.+)$/i.exec(text)?.[1];
+    if (who) return this.historyFor(who.replace(/^(?:me\s+)/i, ''), lang);
+    const days = /^(?:how many days (.+?) dey owe me|how (?:many days|long) (?:has )?(.+?) (?:owed|owe)(?: me)?)\??$/i.exec(text);
+    if (days) return this.historyFor(days[1] ?? days[2], lang);
     const movement=/^stock (in|out)\s*:\s*([^:\n]{1,100})\s*:\s*([^:\n]{1,30})\s*:\s*(\d+)(?:\s*:\s*reorder\s+(\d+))?$/i.exec(text);
     if(movement) {
       const draft:PendingDraft={ownerId:this.ownerId,channel:input.channel,senderId:input.senderId,idempotencyKey:randomUUID(),rawInput:text,entries:[{kind:'stock_movement',stockName:movement[2].trim(),stockUnit:movement[3].trim(),quantityDelta:Number(movement[4])*(movement[1].toLowerCase()==='in'?1:-1),...(movement[5]!==undefined?{reorderAt:Number(movement[5])}:{})}]};
-      return render(p?this.store.replace(this.ownerId,p.id,input.channel,input.senderId,draft):this.store.propose(draft),this.store,lang);
+      return this.proposeMessage(p, input, draft, lang);
+    }
+    // Complete numeric dated-sale clauses from the landing/reported repro. No model arithmetic,
+    // fuzzy amounts or inferred customer: both stated figures still need a separate owner save.
+    const number = '(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d{1,2})?\\s*[km]?';
+    const name = "([\\p{L}][\\p{L} .'-]{0,99}?)";
+    const partial = new RegExp(`^${name} carry [^,\\n]{1,100}? (${number}),\\s*(?:she|he|e|im|dem|they) pay (${number}),\\s*(.+?)[.!]?$`, 'iu').exec(text);
+    const datedCredit = new RegExp(`^${name} bought [^,\\n]{1,100}? on credit for (${number})(?: naira)?,\\s*(.+?)[.!]?$`, 'iu').exec(text);
+    const dated = partial ?? datedCredit;
+    const promise = partial?.[4] ?? datedCredit?.[3];
+    if (dated && promise && (resolveDueDate(promise) || paymentPromise(promise) === promise)) {
+      const amount = parseNaira(dated[2], text);
+      const payment = partial ? parseNaira(partial[3], text) : undefined;
+      if (amount.kind === 'amount' && (!payment || payment.kind === 'amount')) {
+        const customer = this.store.findCustomer(this.ownerId, dated[1]);
+        const similar = customer ? [] : this.store.customers(this.ownerId).filter(c => closeName(c.name, dated[1]));
+        const subject = { ...(customer ? { customerId: customer.id } : { customerName: dated[1] }), ...(similar.length ? { customerCandidates: similar.map(c => c.id) } : {}) };
+        const dueDate = resolveDueDate(promise);
+        const entries: EntryDraft[] = [{ kind: 'sale', ...subject, amountKobo: amount.kobo, ...(dueDate ? { dueDate } : { needsDueDate: true, dueDateSource: promise }) }];
+        if (payment?.kind === 'amount') entries.push({ kind: 'payment', ...subject, amountKobo: payment.kobo });
+        const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries, flags: [...(!dueDate ? [DATE_FLAG] : []), ...(similar.length ? [CUSTOMER_FLAG] : [])] };
+        return this.proposeMessage(p, input, draft, lang);
+      }
     }
     // Narrow, complete English credit-sale grammar for the two failed evaluation phrases.
     // No fuzzy matching, guessed amounts or writes; it still produces an owner-bound review.
@@ -361,7 +387,7 @@ export class Service implements BookkeepingService {
       const similar = customer ? [] : this.store.customers(this.ownerId).filter(c=>closeName(c.name,credit[1]));
       const entries: EntryDraft[] = [{ kind: 'sale', ...(customer ? { customerId: customer.id } : { customerName: credit[1] }), ...(similar.length?{customerCandidates:similar.map(c=>c.id)}:{}), ...(amount.kind === 'amount' ? { amountKobo: amount.kobo } : {}) }];
       const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries };
-      return render(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store, lang);
+      return this.proposeMessage(p, input, draft, lang);
     }
     // Complete numeric Pidgin payment clauses are safe to review without a model.
     // Ambiguous verbal amounts and extra clauses deliberately fall through to extraction/clarification.
@@ -371,14 +397,14 @@ export class Service implements BookkeepingService {
       const customer = this.store.findCustomer(this.ownerId,paid[1]);
       const similar = customer ? [] : this.store.customers(this.ownerId).filter(c=>closeName(c.name,paid[1]));
       const draft: PendingDraft = {ownerId:this.ownerId,channel:input.channel,senderId:input.senderId,idempotencyKey:randomUUID(),rawInput:text,entries:[{kind:'payment',...(customer?{customerId:customer.id}:{customerName:paid[1]}),...(similar.length?{customerCandidates:similar.map(c=>c.id)}:{}),...(amount.kind==='amount'?{amountKobo:amount.kobo}:{})}]};
-      return render(p?this.store.replace(this.ownerId,p.id,input.channel,input.senderId,draft):this.store.propose(draft),this.store,lang);
+      return this.proposeMessage(p, input, draft, lang);
     }
     // An exact, explicit command does not need a model to reinterpret it.
     const purchase = /^stock purchase\s*:\s*([^:\n]+?)\s*:\s*(\d+(?:\.\d{1,2})?)\s*$/i.exec(text);
     if (purchase) {
       const amountKobo = statedAmountKobo(purchase[2], text);
       const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries: [{kind:'purchase', description: purchase[1].trim(), amountKobo}], flags: amountKobo ? [] : ['Missing or invalid amount'] };
-      return render(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store, lang);
+      return this.proposeMessage(p, input, draft, lang);
     }
     let response: unknown;
     try {
@@ -406,17 +432,25 @@ export class Service implements BookkeepingService {
         if (amountFlag) flags.push(amountFlag);
         let dueDate: string | undefined;
         let needsDueDate = false;
-        if (f.kind === 'sale' && !f.due_date_text && /\b(next week|soon|when market (?:is )?good)\b/i.test(f.evidence_text)) needsDueDate = true;
-        if (f.due_date_text) {
-          if (f.kind === 'sale' && quoteOK && sourceHasSpan(f.evidence_text, f.due_date_text)) dueDate = resolveDueDate(f.due_date_text);
+        const promiseScope = call.args.entries.filter(e => e.kind === 'sale').length === 1 ? text : f.evidence_text;
+        const recoveredPromise = f.kind === 'sale' && quoteOK ? paymentPromise(f.evidence_text) ?? paymentPromise(promiseScope) : undefined;
+        const quotedDate = f.due_date_text && sourceHasSpan(f.evidence_text, f.due_date_text) ? f.due_date_text : undefined;
+        let dueDateSource = quotedDate ?? recoveredPromise ?? f.due_date_text ?? undefined;
+        if (dueDateSource) {
+          const literal = quotedDate ? true : recoveredPromise ? sourceHasSpan(promiseScope, dueDateSource) : false;
+          if (f.kind === 'sale' && quoteOK && literal) dueDate = resolveDueDate(dueDateSource);
           if (!dueDate && f.kind === 'sale') needsDueDate = true;
           else if (!dueDate) flags.push('Please edit the invalid date on this transaction.');
         }
-        if (needsDueDate) flags.push('Which day will they pay? Use YYYY-MM-DD, today, tomorrow or a weekday.');
+        // Independently preserve vague promises even if the model omits or shortens the date quote.
+        if (f.kind === 'sale' && /\b(next week|soon|when market (?:is )?good)\b/i.test(promiseScope)) {
+          dueDate = undefined; needsDueDate = true; dueDateSource = promiseScope;
+        }
+        if (needsDueDate) flags.push(DATE_FLAG);
         const customer = f.customer_name && quoteOK && sourceHasSpan(f.evidence_text, f.customer_name) ? this.store.findCustomer(this.ownerId, f.customer_name) : undefined;
         const similar = !customer && f.kind !== 'purchase' && subject && quoteOK && sourceHasSpan(f.evidence_text, subject) ? this.store.customers(this.ownerId).filter(c => closeName(c.name, subject)) : [];
         if (similar.length) flags.push('Choose the customer or confirm a new customer.');
-        const main = { kind: f.kind, ...(similar.length ? {customerCandidates: similar.map(c => c.id)} : {}), ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(amountFlag ? {amountQuestion: {source: f.amount_text ?? undefined, candidatesKobo: amount.kind === 'ambiguous' ? amount.candidatesKobo : [], flag: amountFlag}} : {}), ...(dueDate ? { dueDate } : {}), ...(needsDueDate ? { needsDueDate } : {}) };
+        const main = { kind: f.kind, ...(similar.length ? {customerCandidates: similar.map(c => c.id)} : {}), ...(f.kind === 'purchase' ? { description: subject ?? undefined } : customer ? { customerId: customer.id } : { customerName: subject ?? undefined }), amountKobo: amount.kind === 'amount' ? amount.kobo : undefined, ...(amountFlag ? {amountQuestion: {source: f.amount_text ?? undefined, candidatesKobo: amount.kind === 'ambiguous' ? amount.candidatesKobo : [], flag: amountFlag}} : {}), ...(dueDate ? { dueDate } : {}), ...(needsDueDate ? { needsDueDate, dueDateSource } : {}) };
         if (!f.remaining_text) return [main];
         const remaining = quoteOK ? parseNaira(f.remaining_text, f.evidence_text) : { kind: 'invalid' as const };
         if (f.kind !== 'sale' || amount.kind !== 'amount' || remaining.kind !== 'amount' || remaining.kobo >= amount.kobo || f.remaining_text === f.amount_text || call.args.entries.some(other => other !== f && other.kind === 'payment' && other.customer_name?.toLocaleLowerCase() === f.customer_name?.toLocaleLowerCase())) {
@@ -426,7 +460,7 @@ export class Service implements BookkeepingService {
         return [main, { kind: 'payment' as const, ...(similar.length ? {customerCandidates: similar.map(c => c.id)} : {}), ...(customer ? {customerId:customer.id} : {customerName:subject ?? undefined}), amountKobo: amount.kobo - remaining.kobo, calculatedFromBalance: true }];
       });
       const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries, flags };
-      return render(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store, lang);
+      return this.proposeMessage(p, input, draft, lang);
     }
     if (call.name === 'record_purchase') {
       const match = /^stock purchase\s*:\s*([^:\n]+?)\s*:\s*(\d+(?:\.\d{1,2})?)\s*$/i.exec(text);
@@ -434,7 +468,7 @@ export class Service implements BookkeepingService {
       const flags: string[] = [];
       if (!match || !call.args.description || match[1].trim().toLocaleLowerCase() !== call.args.description.toLocaleLowerCase() || match[2] !== call.args.amount_text || !amountKobo) flags.push('Use exact format: stock purchase: description: amount');
       const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries: [{kind:'purchase', description: call.args.description ?? undefined, amountKobo}], flags };
-      return render(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store, lang);
+      return this.proposeMessage(p, input, draft, lang);
     }
     const flags: string[] = [];
     if (call.args.facts.length !== 1) flags.push('Multiple transactions require separate messages');
@@ -448,7 +482,7 @@ export class Service implements BookkeepingService {
       return { kind: f.kind, customerId: customer?.id, amountKobo, ...(dueDate ? { dueDate } : {}) };
     });
     const draft: PendingDraft = { ownerId: this.ownerId, channel: input.channel, senderId: input.senderId, idempotencyKey: randomUUID(), rawInput: text, entries, flags };
-    return render(p ? this.store.replace(this.ownerId, p.id, input.channel, input.senderId, draft) : this.store.propose(draft), this.store, lang);
+    return this.proposeMessage(p, input, draft, lang);
   }
   async resolveClarification(input: ClarificationInput): Promise<MessageReply> {
     this.check(input);
@@ -461,6 +495,7 @@ export class Service implements BookkeepingService {
     // Interactive payloads may answer a question, never invoke save/edit/cancel.
     const answer = input.answer.trim();
     if (!answer || answer.length > 100 || COMMAND_WORDS.test(answer)) throw new Error('Invalid clarification answer');
+    if (q.type === 'date' && /^[1-9]\d*$/.test(answer) && Number(answer) > dateOptions(p.entries[q.entry].dueDateSource ?? p.rawInput).length) throw new Error('Invalid clarification answer');
     if (q.type === 'customer' && /^[1-9]\d*$/.test(answer) && Number(answer) > q.candidates.length + 1) throw new Error('Invalid clarification answer');
     if (q.type === 'amount' && /^[1-9]$/.test(answer) && (q.options.length ? Number(answer) > q.options.length + 1 : /^[123]$/.test(answer))) throw new Error('Invalid clarification answer');
     return this.answer(p, answer, input, lang) ?? render(p, this.store, lang);

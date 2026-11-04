@@ -44,7 +44,7 @@ function lineText(l: Language, line: ReviewLine): string {
     : line.kind === 'payment' ? pick(l, 'Paid now', 'Pay now')
     : line.kind === 'opening_debt' ? pick(l, 'Debt from before', 'Old debt')
     : pick(l, `Stock bought (${line.description ?? 'unknown stock'})`, `Stock wey you buy (${line.description ?? 'unknown stock'})`); // purchase wording not in design
-  const due = line.due ? pick(l, `, due ${line.due}`, `, pay day ${line.due}`) : ''; // not in design
+  const due = line.due ? pick(l, `, due ${traderDate(line.due)}`, `, pay day ${traderDate(line.due)}`) : ''; // not in design
   const calc = line.calculated ? pick(l, ' (calculated as sale total minus stated unpaid amount)', ' (I work am out: sale total minus wetin remain)') : ''; // not in design
   return `- ${label}: ${bold(line.amount)}${due}${calc}`;
 }
@@ -94,7 +94,10 @@ export function amountQuestionText(l: Language, a: { kind: string; name: string;
   }
   return `${heard}\n${typeAmountPrompt(l)}`;
 }
-export const dateQuestion = (l: Language, name: string) => pick(l, `Which day will ${name} pay? Use YYYY-MM-DD, today, tomorrow or a weekday.`, `Which day ${name} go pay? Use YYYY-MM-DD, today, tomorrow or weekday name.`); // not in design
+export const dateQuestion = (l: Language, name: string) => pick(l, `Which day will ${name} pay? Choose a day, or say No date.`, `Which day ${name} go pay? Choose one day, or talk No date.`);
+export const separateReview = (l: Language) => pick(l, 'I set the earlier draft aside without saving it. This is a separate review. To return to the earlier one, send its details again.', 'I keep the earlier draft aside. I never save am. This one na separate review. To go back to the earlier one, send the details again.');
+/** Friendly civil date for trader copy; storage and action payloads keep ISO dates. */
+export const traderDate = (date: string) => lagosDayWithWeekday(Date.parse(`${date}T07:00:00Z`));
 export const customerQuestion = (l: Language, name: string) => pick(l, `Which ${name} do you mean?`, `Which ${name} you mean?`);
 export const newCustomer = (l: Language) => pick(l, 'New customer', 'New customer');
 export function questionInteractive(id: string, body: string, l: Language, options: { value: string; label: string; description?: string }[], list: boolean): InteractiveReply | undefined {
