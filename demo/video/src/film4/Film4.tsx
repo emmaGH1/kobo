@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import "../compiled.css";
 import words from "../v4words.json";
 import durs from "../v4dur.json";
+import trwords from "../trwords.json";
 import { KoboBubble, TraderBubble, type ReplyView } from "../../../../src/components/demo";
 import { KoboLogo, KoboMark } from "../../../../src/components/kobo/logo";
 import { WaPhone } from "../film2/waphone";
@@ -16,9 +17,11 @@ export const BLUR_NAMES = false;
 
 /* ---------- voice timeline ---------- */
 const DUR: Record<string, number> = durs as Record<string, number>;
-const GAP: Record<string, number> = { S01: 30, S02: 50, S03: 24, S04: 26, S05: 105, S06: 28, S07: 28, S08: 30, S09: 36, S10: 28 };
+const GAP: Record<string, number> = { S01: 30, S02: 50, S03: 24 + Math.round(DUR.TR * 30) + 40, S04: 26, S05: 105, S06: 28, S07: 28, S08: 30, S09: 36, S10: 28 };
 const START: Record<string, number> = {};
 { let t = 0; let prev = ""; for (const k of Object.keys(GAP)) { t += (prev ? Math.round(DUR[prev] * 30) : 0) + GAP[k]; START[k] = t; prev = k; } }
+const TRF = Math.round(DUR.TR * 30);
+const VN = START.S03 - TRF - 34;
 export const film4Frames = START.S10 + Math.round(DUR.S10 * 30) + 120;
 type WT = [string, number][];
 const W = words as Record<string, WT>;
@@ -73,14 +76,14 @@ function Captions({ f }: { f: number }) {
 
 /* ================= 1 · the problem (0 → 900) ================= */
 const DEBTS: [string, number, string][] = [
-  ["Rice · Mama Chidi", 45000, "pay Friday"],
-  ["2 cartons · Chinedu", 18000, "next week"],
-  ["Oil · Bayo", 28000, "since Oct"],
-  ["Iya Basira", 6000, "month end"],
-  ["Tunde", 3500, "Saturday"],
-  ["Emeka", 12000, "after market"],
-  ["Ada", 1500, "soon"],
-  ["Mama Nkechi", 33500, "Friday"],
+  ["Half bag rice · Mama Chidi", 45000, "pay Friday"],
+  ["Carton of spaghetti · Chinedu", 18000, "next week"],
+  ["Crate of eggs · Iya Basira", 5800, "month end"],
+  ["Provisions · Bayo", 28000, "since Oct"],
+  ["Titus fish · Tunde", 3500, "Saturday"],
+  ["Paint of beans · Emeka", 3000, "after market"],
+  ["Bag of pure water · Ada", 600, "soon"],
+  ["Groundnut oil · Mama Nkechi", 3000, "Friday"],
 ];
 function Head({ draw }: { draw: number }) {
   const d = "M1010 300c-70-40-180-30-240 40-50 60-50 140-20 200 10 20 0 40-20 60l-30 40c-10 15 0 30 20 30h25l5 50c3 30 30 45 60 40l55-8 10 80h190l-10-120c60-60 80-160 40-250-35-80-80-130-85-160z";
@@ -91,7 +94,7 @@ function Head({ draw }: { draw: number }) {
   );
 }
 function Problem({ f }: { f: number }) {
-  const cardAt = [wf("S01", "rice"), wf("S01", "cartons"), ...[0, 1, 2, 3, 4, 5].map((i) => wf("S01", "remember") + 8 + i * 9)];
+  const cardAt = [wf("S01", "rice"), wf("S01", "carton"), wf("S01", "crate"), ...[0, 1, 2, 3, 4].map((i) => wf("S01", "remember") + 8 + i * 9)];
   const headAt = wf("S01", "carry") - 6;
   const mixAt = wf("S01", "mixed");
   const slipAt = wf("S01", "slip");
@@ -106,10 +109,9 @@ function Problem({ f }: { f: number }) {
   return (
     <AbsoluteFill style={{ opacity: exit }}>
       <div style={{ position: "absolute", left: 120, top: 92 }}>
-        <Rise f={f} at={10}><Eyebrow>Every market day</Eyebrow></Rise>
+        <Rise f={f} at={cardAt[0] - 6}><Eyebrow>Every market day</Eyebrow></Rise>
       </div>
       {/* the trader's head */}
-      <Head draw={ease(f, headAt, 36)} />
       {/* questions */}
       <div style={{ position: "absolute", left: 120, top: 150, display: "flex", flexDirection: "column", gap: 6 }}>
         {qs.map(([w, q], i) => {
@@ -130,7 +132,7 @@ function Problem({ f }: { f: number }) {
         const label = swapped ? DEBTS[i === 2 ? 4 : 2][0] : name;
         const strike = ease(f, slipAt + i * 2, 12);
         return (
-          <div key={i} style={{ position: "absolute", left: x - 150, top: y - 52, width: 300, zIndex: Math.round(depth * 100), opacity: p * fade * (0.55 + depth * 0.45), transform: `scale(${(0.78 + depth * 0.32) * (0.6 + 0.4 * p)}) rotate(${(i % 2 ? 1 : -1) * 2}deg)`, background: "#FFFDF8", borderRadius: 16, padding: "14px 18px", boxShadow: `0 ${10 + depth * 20}px ${30 + depth * 30}px -12px rgba(60,45,25,${0.25 + depth * 0.2})`, border: "1px solid rgba(45,44,42,0.08)" }}>
+          <div key={i} style={{ position: "absolute", left: x - 165, top: y - 52, width: 330, zIndex: Math.round(depth * 100), opacity: p * fade * (0.55 + depth * 0.45), transform: `scale(${(0.78 + depth * 0.32) * (0.6 + 0.4 * p)}) rotate(${(i % 2 ? 1 : -1) * 2}deg)`, background: "#FFFDF8", borderRadius: 16, padding: "14px 18px", boxShadow: `0 ${10 + depth * 20}px ${30 + depth * 30}px -12px rgba(60,45,25,${0.25 + depth * 0.2})`, border: "1px solid rgba(45,44,42,0.08)" }}>
             <div style={{ fontFamily: SANS, fontSize: 18, color: swapped ? C.owed : "#6F6A62" }}>{label}</div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 4 }}>
               <span style={{ fontFamily: SERIF, fontSize: 36, color: C.ink, letterSpacing: "-0.02em" }}>{naira(amt)}</span>
@@ -206,7 +208,7 @@ function Product({ f }: { f: number }) {
   const wa = wf("S02", "whatsapp");
   const tell = wf("S02", "tell");
   const s3 = START.S03, s4 = START.S04, s5 = START.S05, s6 = START.S06, s7 = START.S07;
-  const mcSend = wf("S03", "friday") + 4;
+  const mcSend = VN;
   const mcReply = wf("S03", "lays") - 4;
   const mcTap = wf("S03", "one") + 2;
   const mcSaved = mcTap + 16;
@@ -226,11 +228,11 @@ function Product({ f }: { f: number }) {
 
   // composer typing
   const typeLine = (txt: string, from: number, to: number) => (f >= from && f < to ? txt.slice(0, Math.round(interpolate(f, [from, to - 6], [0, txt.length], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }))) : undefined);
-  const typed = typeLine("Mama Chidi carry rice 45k, she pay 20k, remain Friday", s3 + 6, mcSend) ?? typeLine("Bayo pay me three eight", s4 + 2, bSend) ?? typeLine("Who dey owe me", s5 - 30, whoSend);
+  const typed = typeLine("Bayo pay me three eight", s4 + 2, bSend) ?? typeLine("Who dey owe me", s5 - 30, whoSend);
 
   const items: Item[] = [
     { key: "d0", at: tell, node: <DatePill t="Today" /> },
-    { key: "t1", at: mcSend, node: <TraderBubble m={{ id: "t1", from: "you", text: "Mama Chidi carry rice 45k, she pay 20k, remain Friday" }} /> },
+    { key: "t1", at: mcSend, node: <VoiceNote f={f} at={VN} /> },
     { key: "k1", at: mcReply, node: <KoboBubble view={R.mcReview} time="10:30 PM" pressed={f >= mcTap ? "1" : undefined} /> },
     { key: "k2", at: mcSaved, node: <KoboBubble view={R.mcSaved} time="10:30 PM" /> },
     { key: "t2", at: bSend, node: <TraderBubble m={{ id: "t2", from: "you", text: "Bayo pay me three eight" }} /> },
@@ -244,7 +246,7 @@ function Product({ f }: { f: number }) {
     { key: "k8", at: drAt, node: <KoboBubble view={R.draft} time="8:00 AM" /> },
     { key: "p1", at: photoAt, node: <PhotoBubble blur={BLUR_NAMES} /> },
   ];
-  const typing = [[mcSend + 6, mcReply], [bSend + 6, bQ], [whoSend + 6, whoReply]].some(([a, b]) => f >= a && f < b);
+  const typing = [[VN + TRF + 4, mcReply], [bSend + 6, bQ], [whoSend + 6, whoReply]].some(([a, b]) => f >= a && f < b);
 
   // phone entrance / exit and camera
   const enter = sp(f, wa - 4, { damping: 22, stiffness: 90 });
@@ -280,8 +282,8 @@ function Product({ f }: { f: number }) {
         </div>
       )}
       {/* reveal copy, right side */}
-      {f >= wa && f < s3 + 10 && (
-        <div style={{ position: "absolute", left: 880, top: 360, opacity: 1 - ease(f, s3 - 10, 16) }}>
+      {f >= wa && f < VN + 10 && (
+        <div style={{ position: "absolute", left: 880, top: 360, opacity: 1 - ease(f, VN - 12, 14) }}>
           <Rise f={f} at={wa + 6}><Eyebrow>Lives in WhatsApp</Eyebrow></Rise>
           <Rise f={f} at={tell - 2}><Serif size={110} style={{ marginTop: 18 }}>You just tell it.</Serif></Rise>
         </div>
@@ -307,6 +309,13 @@ function Product({ f }: { f: number }) {
       )}
 
       {/* ---- right-side story panels ---- */}
+      <Panel f={f} from={VN} to={s3 - 4}>
+        <Eyebrow>Voice note · Pidgin · from the stall</Eyebrow>
+        <div style={{ marginTop: 26, maxWidth: 860 }}>
+          <Serif size={58}>{TRW.map(([w, t], i) => <span key={i} style={{ opacity: f >= VN + t * FPS - 2 ? 1 : 0.14, transition: "none" }}>{w} </span>)}</Serif>
+        </div>
+        <div style={{ marginTop: 34, display: "inline-block", fontFamily: SANS, fontSize: 17, color: "#8A8478", border: "1px solid rgba(45,44,42,0.18)", borderRadius: 999, padding: "6px 14px" }}>Reenactment · voice notes are in testing</div>
+      </Panel>
       <Panel f={f} from={s3} to={s4 - 6}>
         <Eyebrow>Say it the way you'd say it</Eyebrow>
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 26 }}>
@@ -513,6 +522,62 @@ function EndCard({ f }: { f: number }) {
   );
 }
 
+
+const TRW = trwords as [string, number][];
+function VoiceNote({ f, at }: { f: number; at: number }) {
+  const prog = Math.max(0, Math.min(1, (f - at) / TRF));
+  const bars = Array.from({ length: 34 }, (_, i) => 6 + Math.abs(Math.sin(i * 1.7) * 14 + Math.sin(i * 0.6) * 8));
+  const live = f >= at && f < at + TRF;
+  const secs = Math.round(DUR.TR);
+  return (
+    <div style={{ alignSelf: "flex-end", background: "#D9FDD3", padding: "10px 12px", borderRadius: 14, borderTopRightRadius: 4, boxShadow: "0 1px 0.5px rgba(11,20,26,0.13)", display: "flex", alignItems: "center", gap: 10, width: 300 }}>
+      <div style={{ width: 0, height: 0, borderTop: "9px solid transparent", borderBottom: "9px solid transparent", borderLeft: `14px solid ${live ? "#1DAA61" : "#54656F"}` , marginLeft: 4 }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 2.5, flex: 1, height: 34 }}>
+        {bars.map((h, i) => {
+          const on = i / bars.length <= prog;
+          const pulse = live && on ? 1 + 0.35 * Math.abs(Math.sin(f / 3 + i)) : 1;
+          return <span key={i} style={{ width: 3, height: Math.min(30, h * pulse), borderRadius: 2, background: on ? "#1DAA61" : "#9AB8A5" }} />;
+        })}
+      </div>
+      <div style={{ fontFamily: SANS, fontSize: 12, color: "#667781", width: 30 }}>0:{String(live ? Math.floor(prog * secs) : secs).padStart(2, "0")}</div>
+    </div>
+  );
+}
+const CLIPS: [string, number, number, number][] = [
+  // src, from, len, playbackRate
+  ["v6/m3.mp4", 0, 130, 1],
+  ["v6/m2.mp4", 118, 320, 1],
+  ["v6/m1.mp4", 426, 760, 0.82],
+];
+function MarketBG({ f, washAt }: { f: number; washAt: number }) {
+  const wash = ease(f, washAt - 6, 40) * 0.8;
+  const out = 1 - ease(f, START.S02 - 30, 30);
+  const titleOut = 1 - ease(f, washAt - 24, 16);
+  return (
+    <AbsoluteFill style={{ opacity: out }}>
+      {CLIPS.map(([src, from, len, rate], i) => (
+        <Sequence key={i} from={from} durationInFrames={len}>
+          <AbsoluteFill style={{ opacity: Math.min(ease(f, from, 12), 1 - ease(f, from + len - 12, 12)), transform: `scale(${1.04 + 0.08 * ((f - from) / len)})` }}>
+            <OffthreadVideo src={staticFile(src)} muted playbackRate={rate} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "saturate(1.08) contrast(1.04)" }} />
+          </AbsoluteFill>
+        </Sequence>
+      ))}
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(20,14,8,0.35) 0%, rgba(20,14,8,0) 35%, rgba(20,14,8,0.45) 100%)", opacity: 1 - wash }} />
+      <AbsoluteFill style={{ background: PAPER, opacity: wash }} />
+      {titleOut > 0 && (
+        <div style={{ position: "absolute", left: 120, bottom: 150, opacity: titleOut }}>
+          <Rise f={f} at={8}><div style={{ fontFamily: SANS, fontSize: 18, letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(255,250,240,0.8)" }}>Every market day</div></Rise>
+          <Rise f={f} at={18}><div style={{ fontFamily: SERIF, fontSize: 96, color: "#FFFAF0", lineHeight: 1.02, marginTop: 14, textShadow: "0 4px 30px rgba(0,0,0,0.35)" }}>Goods go out on credit.</div></Rise>
+        </div>
+      )}
+    </AbsoluteFill>
+  );
+}
+function Grain({ f }: { f: number }) {
+  const k = Math.floor(f / 2);
+  return <AbsoluteFill style={{ pointerEvents: "none", backgroundImage: `url(${staticFile("v6/grain.png")})`, backgroundPosition: `${(k * 137) % 512}px ${(k * 251) % 512}px`, opacity: 0.07, mixBlendMode: "multiply", zIndex: 90 }} />;
+}
+
 /* ================= transitions ================= */
 function InkWipe({ f, at }: { f: number; at: number }) {
   if (f < at || f > at + 50) return null;
@@ -527,7 +592,7 @@ function BarWipe({ f, at }: { f: number; at: number }) {
 }
 
 /* ================= audio ================= */
-const SPANS = Object.keys(START).map((k) => [START[k], end(k)]);
+const SPANS = [...Object.keys(START).map((k) => [START[k], end(k)]), [VN, VN + TRF]];
 const talking = (f: number) => SPANS.some(([a, b]) => f > a - 10 && f < b + 6);
 function Bed({ src, from, to, base, loop }: { src: string; from: number; to: number; base: number; loop?: boolean }) {
   const len = to - from;
@@ -538,7 +603,7 @@ function Bed({ src, from, to, base, loop }: { src: string; from: number; to: num
   );
 }
 function Pops() {
-  const at = [START.S03 + 0, wf("S03", "friday") + 4, wf("S03", "lays") - 4, wf("S03", "one") + 2, wf("S04", "bayo") + 6, wf("S04", "guess") - 2, end("S04") + 4, end("S04") + 62, START.S05 + 4, wf("S05", "everyone") - 2, wf("S06", "reminds"), wf("S06", "drafts") - 2, wf("S07", "snap") + 8];
+  const at = [VN, START.S03 + 0, wf("S03", "lays") - 4, wf("S03", "one") + 2, wf("S04", "bayo") + 6, wf("S04", "guess") - 2, end("S04") + 4, end("S04") + 62, START.S05 + 4, wf("S05", "everyone") - 2, wf("S06", "reminds"), wf("S06", "drafts") - 2, wf("S07", "snap") + 8];
   return <>{at.map((a, i) => <Sequence key={i} from={a} durationInFrames={10}><Audio src={staticFile("v4/pop.wav")} volume={0.22} /></Sequence>)}</>;
 }
 
@@ -547,7 +612,9 @@ export function Film4() {
   return (
     <AbsoluteFill style={{ background: PAPER }}>
       <style>{`.kl svg{width:100%;height:auto;display:block}`}</style>
-      <AbsoluteFill style={{ background: "radial-gradient(120% 90% at 50% 40%, rgba(255,253,246,0.9) 0%, rgba(244,238,227,0) 60%, rgba(214,202,182,0.45) 100%)" }} />
+      <AbsoluteFill style={{ background: `radial-gradient(120% 90% at ${50 + 14 * Math.sin(f / 170)}% ${40 + 10 * Math.cos(f / 210)}%, rgba(255,253,246,0.95) 0%, rgba(244,238,227,0) 58%, rgba(214,202,182,0.5) 100%)` }} />
+      <AbsoluteFill style={{ background: `radial-gradient(50% 45% at ${70 - 20 * Math.sin(f / 260)}% ${65 + 12 * Math.sin(f / 190)}%, rgba(146,169,225,0.10) 0%, rgba(146,169,225,0) 100%)` }} />
+      {f < START.S02 + 10 && <MarketBG f={f} washAt={wf("S01", "rice")} />}
       {f < START.S02 + 50 && <Problem f={f} />}
       {f >= START.S02 - 30 && f < START.S08 + 40 && <Product f={f} />}
       <InkWipe f={f} at={START.S02 - 26} />
@@ -557,12 +624,14 @@ export function Film4() {
       <Hood f={f} />
       <EndCard f={f} />
       <Captions f={f} />
+      <Grain f={f} />
       {/* voice */}
       {Object.keys(START).map((k, i) => (
         <Sequence key={k} from={START[k]} durationInFrames={Math.round(DUR[k] * FPS) + 10}>
           <Audio src={staticFile(`v4/vo_${String(i + 1).padStart(2, "0")}.wav`)} volume={1} />
         </Sequence>
       ))}
+      <Sequence from={VN} durationInFrames={TRF + 6}><Audio src={staticFile("v4/trader.wav")} volume={1} /></Sequence>
       {/* music: a bed per chapter, 1.5s crossfades, ducked under the voice */}
       <Bed src="music/opening-africa.mp3" from={0} to={START.S02 + 20} base={0.34} />
       <Bed src="music/percussions.mp3" from={START.S02 - 30} to={START.S03 + 10} base={0.4} />
