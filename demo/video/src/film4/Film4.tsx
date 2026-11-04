@@ -210,7 +210,7 @@ function Product({ f }: { f: number }) {
   const mcReply = wf("S03", "lays") - 4;
   const mcTap = wf("S03", "one") + 2;
   const mcSaved = mcTap + 16;
-  const bSend = wf("S04", "bio") + 6;
+  const bSend = wf("S04", "bayo") + 6;
   const bQ = wf("S04", "guess") - 2;
   const bTap = end("S04") + 4;
   const bReview = bTap + 24;
@@ -538,7 +538,7 @@ function Bed({ src, from, to, base, loop }: { src: string; from: number; to: num
   );
 }
 function Pops() {
-  const at = [START.S03 + 0, wf("S03", "friday") + 4, wf("S03", "lays") - 4, wf("S03", "one") + 2, wf("S04", "bio") + 6, wf("S04", "guess") - 2, end("S04") + 4, end("S04") + 62, START.S05 + 4, wf("S05", "everyone") - 2, wf("S06", "reminds"), wf("S06", "drafts") - 2, wf("S07", "snap") + 8];
+  const at = [START.S03 + 0, wf("S03", "friday") + 4, wf("S03", "lays") - 4, wf("S03", "one") + 2, wf("S04", "bayo") + 6, wf("S04", "guess") - 2, end("S04") + 4, end("S04") + 62, START.S05 + 4, wf("S05", "everyone") - 2, wf("S06", "reminds"), wf("S06", "drafts") - 2, wf("S07", "snap") + 8];
   return <>{at.map((a, i) => <Sequence key={i} from={a} durationInFrames={10}><Audio src={staticFile("v4/pop.wav")} volume={0.22} /></Sequence>)}</>;
 }
 
