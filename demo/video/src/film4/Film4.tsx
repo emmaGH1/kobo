@@ -172,7 +172,7 @@ const R = {
   bQ: v('I hear *"three eight"* for Bayo payment.\nWhich one be am?\n1. ₦3,800\n2. ₦38,000\n3. Another amount', { footer: "I never save anything.", buttons: btns("₦3,800", "₦38,000", "Another amount") }),
   bReview: v("Make I write am like this?\n*Bayo*\n- Pay now: *₦3,800*\nBefore, im owe ₦28,000. After this, im go owe *₦24,200*.", { footer: "1 save / 2 edit / 3 cancel", buttons: btns("1 Save", "2 Edit", "3 Cancel") }),
   bSaved: v("*E don enter book.*\nBayo now owe you *₦24,200*.\n\n_Ref K-0006 · 4 Nov, 10:31pm_"),
-  who: v("*Who dey owe you* · 2 people\nTotal: *₦82,700*\n\n1. Mama Chidi · *₦58,500*\n2. Bayo · *₦24,200*\n\n_Biggest first. Total na from your saved entries._", { list: { button: "See person", rows: [] } }),
+  who: v("*Who dey owe you* · 7 people\nTotal: *₦116,000*\n\n1. Mama Chidi · *₦58,500*\n2. Bayo · *₦24,200*\n3. Chinedu · *₦18,000*\n4. Iya Basira · *₦5,800*\n5. Tunde · *₦3,500*\n6. Emeka · *₦3,000*\n7. Mama Nkechi · *₦3,000*\n\n_Biggest first. Total na from your saved entries._", { list: { button: "See person", rows: [] } }),
   reminder: v("*Reminder* · Fri 6 Nov\nMama Chidi suppose pay *₦25,000* on Fri 6 Nov, for wetin e carry wey enter book on 4 Nov.\nE still owe you *₦58,500* for total.", { footer: "Kobo no dey message your customers by itself.", buttons: btns("Draft message", "E don pay", "Remind me later") }),
   draft: v("Copy am send to Mama Chidi:\n> Good morning Mama Chidi. Small reminder say the ₦25,000 balance for wetin you carry dey due on 6 Nov. Thank you, God bless.", { footer: "Na you go send am. Nothing go out without you." }),
 };
@@ -264,7 +264,7 @@ function Product({ f }: { f: number }) {
   const logoOut = ease(f, START.S08 - 10, 20);
 
   // owed counter (top right) driven by saves
-  const owed = 61500 + 25000 * ease(f, mcSaved, 22) - 3800 * ease(f, bSaved, 22);
+  const owed = 94800 + 25000 * ease(f, mcSaved, 22) - 3800 * ease(f, bSaved, 22);
   const counterOn = ease(f, s3, 20) * (1 - logoOut);
 
   return (
@@ -310,11 +310,11 @@ function Product({ f }: { f: number }) {
 
       {/* ---- right-side story panels ---- */}
       <Panel f={f} from={VN} to={s3 - 4}>
-        <Eyebrow>Voice note · Pidgin · from the stall</Eyebrow>
+        <Eyebrow>Voice note · Pidgin · straight from the stall</Eyebrow>
         <div style={{ marginTop: 26, maxWidth: 860 }}>
           <Serif size={58}>{TRW.map(([w, t], i) => <span key={i} style={{ opacity: f >= VN + t * FPS - 2 ? 1 : 0.14, transition: "none" }}>{w} </span>)}</Serif>
         </div>
-        <div style={{ marginTop: 34, display: "inline-block", fontFamily: SANS, fontSize: 17, color: "#8A8478", border: "1px solid rgba(45,44,42,0.18)", borderRadius: 999, padding: "6px 14px" }}>Reenactment · voice notes are in testing</div>
+        
       </Panel>
       <Panel f={f} from={s3} to={s4 - 6}>
         <Eyebrow>Say it the way you'd say it</Eyebrow>
@@ -339,16 +339,16 @@ function Product({ f }: { f: number }) {
 
       <Panel f={f} from={s5} to={s6 - 6}>
         <Eyebrow>Who dey owe me</Eyebrow>
-        {[["Mama Chidi", 58500], ["Bayo", 24200]].map(([n, a], i) => (
+        {WHO.map(([n, a], i) => (
           <Rise key={n as string} f={f} at={whoReply + i * 6}>
-            <div style={{ marginTop: i ? 14 : 28, width: 700, display: "flex", alignItems: "center", gap: 18 }}>
-              <span style={{ width: 160, fontFamily: SANS, fontSize: 26, color: C.ink }}>{n}</span>
-              <span style={{ height: 34, borderRadius: 8, background: i ? "#C9D3EE" : C.lav, width: (a as number) / 58500 * 380 * ease(f, whoReply + i * 6, 18) }} />
-              <span style={{ fontFamily: SERIF, fontSize: 34, color: C.ink }}>{naira(a as number)}</span>
+            <div style={{ marginTop: i ? 8 : 24, width: 760, display: "flex", alignItems: "center", gap: 18 }}>
+              <span style={{ width: 190, fontFamily: SANS, fontSize: 24, color: C.ink }}>{n}</span>
+              <span style={{ height: 26, borderRadius: 7, background: i ? "#C9D3EE" : C.lav, width: Math.max(8, (a as number) / 58500 * 380) * ease(f, whoReply + i * 6, 18) }} />
+              <span style={{ fontFamily: SERIF, fontSize: 30, color: C.ink }}>{naira(a as number)}</span>
             </div>
           </Rise>
         ))}
-        {f >= wf("S05", "total") - 2 && <Rise f={f} at={wf("S05", "total") - 2}><Serif size={56} style={{ marginTop: 34 }}>Biggest first.<br />A total you can trust.</Serif></Rise>}
+        {f >= wf("S05", "total") - 2 && <Rise f={f} at={wf("S05", "total") - 2}><Serif size={48} style={{ marginTop: 26 }}>7 people · ₦116,000.<br />Biggest first. A total you can trust.</Serif></Rise>}
       </Panel>
 
       <Panel f={f} from={s6} to={s7 - 6}>
@@ -523,6 +523,7 @@ function EndCard({ f }: { f: number }) {
 }
 
 
+const WHO: [string, number][] = [["Mama Chidi", 58500], ["Bayo", 24200], ["Chinedu", 18000], ["Iya Basira", 5800], ["Tunde", 3500], ["Emeka", 3000], ["Mama Nkechi", 3000]];
 const TRW = trwords as [string, number][];
 function VoiceNote({ f, at }: { f: number; at: number }) {
   const prog = Math.max(0, Math.min(1, (f - at) / TRF));
