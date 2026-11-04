@@ -47,6 +47,11 @@ export interface ChatBackend {
   reset(): Promise<{ remaining: number }>;
   /** Demo only: jump to Friday 8:00 AM and get the messages Kobo sends by itself then. Free. */
   skipToFriday(): Promise<SkipResult>;
+  /**
+   * What the server says is left, asked once when the page loads. Never creates a session for a
+   * visitor who hasn't started one. Resolves to the current known count either way.
+   */
+  sync(): Promise<number>;
   /** The demo session's clock (e.g. "8:00 AM") once it has been moved; null means real time. */
   clockLabel(): string | null;
 }
@@ -106,6 +111,7 @@ export function createScriptedBackend(lang: Lang = "pcm"): ChatBackend {
       return { dateLabel: "Friday", replies, remaining: MESSAGE_LIMIT - used };
     },
     clockLabel: () => (clock ? timeLabel(clock) : null),
+    sync: async () => MESSAGE_LIMIT - used,
   };
 }
 
@@ -135,10 +141,56 @@ interface ApiReply {
   simulatedAt?: number;
 }
 
-export function createApiBackend(lang: Lang = "pcm", fetchImpl: typeof fetch = (...a) => fetch(...a), base = "/api/demo"): ChatBackend {
+/** When the visitor's demo session expires (ms epoch), remembered so a reload can ask for the count. */
+const SESSION_UNTIL_KEY = "kobo_demo_until";
+type FlagStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+function browserStorage(): FlagStorage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null; // storage blocked (private mode, etc.)
+  }
+}
+
+/**
+ * `remaining` is always core's number: read from the session response (new or existing), from every
+ * reply, and from reset. The counter counts real model calls (DEMO_LIMIT in src/server/demo.ts):
+ * lookups, saves and button taps are free; a model call that fails still costs one; reset clears
+ * the conversation but never refills it.
+ */
+export function createApiBackend(
+  lang: Lang = "pcm",
+  fetchImpl: typeof fetch = (...a) => fetch(...a),
+  base = "/api/demo",
+  storage: FlagStorage | null = browserStorage(),
+): ChatBackend {
   let current: Lang = lang;
+  const remember = (expiresAt: unknown) => {
+    if (typeof expiresAt !== "number") return;
+    try {
+      storage?.setItem(SESSION_UNTIL_KEY, String(expiresAt));
+    } catch {
+      /* the flag is a convenience; losing it only means the count isn't restored on reload */
+    }
+  };
+  const forget = () => {
+    try {
+      storage?.removeItem(SESSION_UNTIL_KEY);
+    } catch {
+      /* see remember */
+    }
+  };
+  const hasLiveSession = () => {
+    try {
+      const until = Number(storage?.getItem(SESSION_UNTIL_KEY));
+      return Number.isFinite(until) && until > Date.now();
+    } catch {
+      return false;
+    }
+  };
   let session: Promise<void> | null = null;
   let clock: Date | null = null;
+  let remaining = API_MESSAGE_LIMIT;
 
   async function request(op: string, body: Record<string, unknown>) {
     return fetchImpl(`${base}/${op}`, {
@@ -149,11 +201,15 @@ export function createApiBackend(lang: Lang = "pcm", fetchImpl: typeof fetch = (
     });
   }
   function ensureSession() {
-    session ??= request("session", { lang: current }).then((r) => {
+    session ??= request("session", { lang: current }).then(async (r) => {
       if (!r.ok) {
         session = null;
         throw new DemoApiError(r.status);
       }
+      // New or existing session: either way the response carries what is left.
+      const a = (await r.json().catch(() => ({}))) as ApiReply & { expiresAt?: number };
+      if (typeof a.remaining === "number") remaining = a.remaining;
+      remember(a.expiresAt);
     });
     return session;
   }
@@ -163,6 +219,7 @@ export function createApiBackend(lang: Lang = "pcm", fetchImpl: typeof fetch = (
     let r = await request(op, body);
     if (r.status === 401) {
       session = null;
+      forget();
       await ensureSession();
       r = await request(op, body);
     }
@@ -171,7 +228,6 @@ export function createApiBackend(lang: Lang = "pcm", fetchImpl: typeof fetch = (
     if (!r.ok) throw new DemoApiError(r.status);
     return (await r.json()) as ApiReply;
   }
-  let remaining = API_MESSAGE_LIMIT;
   const result = (a: ApiReply): ChatResult => {
     if (typeof a.remaining === "number") remaining = a.remaining;
     return { replies: a.replies ?? [], remaining, ...(a.limited ? { limited: true } : {}) };
@@ -200,7 +256,9 @@ export function createApiBackend(lang: Lang = "pcm", fetchImpl: typeof fetch = (
       if (r.status === 429) return { remaining: (remaining = 0) };
       if (!r.ok) throw new DemoApiError(r.status);
       session = Promise.resolve();
-      return { remaining: result((await r.json()) as ApiReply).remaining };
+      const a = (await r.json()) as ApiReply & { expiresAt?: number };
+      remember(a.expiresAt);
+      return { remaining: result(a).remaining };
     },
     async skipToFriday() {
       const a = await call("clock", { to: "friday" });
@@ -210,6 +268,17 @@ export function createApiBackend(lang: Lang = "pcm", fetchImpl: typeof fetch = (
       return { dateLabel: lagos(clock ?? new Date(), { weekday: "long" }), ...result({ ...a, replies }) };
     },
     clockLabel: () => (clock ? lagos(clock, { hour: "numeric", minute: "2-digit" }) : null),
+    async sync() {
+      // Only a visitor who already started a session has a cookie, so asking is read-only for
+      // them. Anyone else would get a brand-new session (and use core's per-IP allowance).
+      if (!hasLiveSession()) return remaining;
+      try {
+        await ensureSession();
+      } catch {
+        /* offline or refused: keep showing the last known count */
+      }
+      return remaining;
+    },
   };
 }
 

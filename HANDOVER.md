@@ -143,7 +143,10 @@ Seven owner-requested steps, each committed and pushed: (1) book totals start at
 ### Cards and skip-to-Friday (2026-11-03)
 Card kit plus ReceiptCard (/og/receipt), DebtorsCard, CustomerHistoryCard, StockCard, InsightsCard, NotebookImportCard, ReminderCard and DraftMessageCard in src/components/demo (props-only, data-demo hooks, tests; samples at /og/sample/<card>). 4.10/4.11 wording is shared via reminder-copy.ts and checked against DESIGN.md. "Skip to Friday" in Your turn goes through ChatBackend.skipToFriday/clockLabel. 60 tests, lint, typecheck and build pass; every card rendered and inspected; the Friday flow was driven in Chromium.
 
-### Blockers / unresolved decisions
+### Counter fix (2026-11-04)
+ChatBackend gained sync(); createApiBackend reads `remaining` from the session response, replies and reset, and remembers the session expiry in localStorage so a reload shows core's number without creating a session for new visitors. Label is now "N of 12 AI replies left". Reset behaviour unchanged. 206 tests, lint, typecheck, build pass; verified in Chromium against `next dev`. Note: the demo API rejects http origins when NODE_ENV=production, so plain-http previews cannot use Your turn; use https.
+
+## Blockers / unresolved decisions
 Direction approved and logo B picked (2026-11-01). Core must decide on the ReplyView contract extension and the /api/demo/* endpoints. Shared-file coordination is needed for page.tsx, layout.tsx, globals.css and a PNG renderer dependency. The Pidgin copy needs a native-speaker check.
 
 ### Summary card and owner decisions (2026-11-02)

@@ -39,6 +39,15 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
   const atLimit = remaining <= 0;
   const CHIPS = backend.suggestions;
 
+  // Show core's count on load (a reload keeps the session's allowance), not a fresh 12.
+  useEffect(() => {
+    let live = true;
+    void backend.sync().then((n) => live && setRemaining(n));
+    return () => {
+      live = false;
+    };
+  }, [backend]);
+
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
@@ -203,7 +212,9 @@ export function WhatsAppDemo({ intro }: { intro: ReactNode }) {
           >
             <CalendarClock className="size-4" strokeWidth={1.5} /> Skip to Friday
           </button>
-          <span className="tnum">{Math.max(remaining, 0)} of {backend.limit} messages left</span>
+          <span className="tnum" title="Only replies that need the AI count. Lookups, saves and button taps are free.">
+            {Math.max(remaining, 0)} of {backend.limit} AI replies left
+          </span>
           <button type="button" onClick={reset} className="flex items-center gap-1 underline-offset-4 hover:underline">
             <RotateCcw className="size-3" strokeWidth={2} /> Reset
           </button>

@@ -25,7 +25,7 @@ The owner judged v2 generic (a phone in a coloured box, as in the WhatsForm and 
 4. **Serif for the record, sans for the chatter.** Geist Serif sets headlines, names and every amount (the book). Geist Sans sets UI, captions and WhatsApp's own interface (the conversation).
 5. **Numbers are the headline.** The safety section is a typographic poster: "₦3,800 *or* ₦38,000?" at 104–140px on graphite.
 6. **Box only real objects.** The phone and the book are the only framed things. Everything else is white space and hairlines (1px, ink at 12–15%). No feature cards, no notched cards, no bento.
-7. **Honest.** The film is labelled "Scripted film · sample data · real message formats". The interactive section says it runs a scripted demo book.
+7. **Honest.** The film is labelled "Scripted film · sample data · real message formats". The interactive section says it is the live engine (real AI, real ledger, a private demo session with sample customers that other visitors never see); that sentence is only true while the server has its model configured and working.
 
 **Landing order** (`src/components/landing/sections.tsx`):
 1. Quiet nav: the [k]obo logo, text links, a graphite "Try it" pill.
@@ -60,6 +60,8 @@ Routes: `/og` (summary), `/og/receipt`, and `/og/sample/<summary|receipt|debtors
 **Core data these cards assume but core doesn't record yet:** stock quantities and reorder levels (StockCard), product names and quantities per sale (Receipt, Insights), promise status (History), and the notebook-photo reading pipeline (Import).
 
 ### "Your turn" backend swap
+
+**The "N of 12 AI replies left" counter** is always core's number: read from the session response, every reply and reset. It counts real model calls, not messages (lookups, saves, button taps and Skip to Friday are free; a model call that fails still costs one; Reset clears the chat but never refills it). On reload the page asks core for the count only if this visitor already started a session (the expiry time is kept in `localStorage` as `kobo_demo_until`), because asking without a cookie would create a new session and use core's per-IP allowance (3/hour, 100/hour overall). A first-time visitor loading the page makes no demo request at all. Core's origin check accepts only `https://` in production, so "Your turn" cannot reach the demo API over a plain-http `next start` preview.
 
 The interactive phone talks only to `ChatBackend` in `src/components/chat/backend.ts` (`greeting`, async `send`, `setLanguage`, `reset`, `limit`, `suggestions`, `sampleVoice`, and the demo-only `skipToFriday` / `clockLabel`). **Skip to Friday** moves the demo session clock to the next Friday at 8:00 AM and shows what Kobo sends by itself then (the 4.10 reminder, or "nothing due"), under a WhatsApp "Friday" separator. It doesn't count toward the message limit, and reset returns to real time. Core's equivalent is `POST /api/demo/clock { to: "friday" }`, for demo sessions only. A real book never has a movable clock. Today `createChatBackend` returns the scripted engine. When core ships `/api/demo/*`, add `createApiBackend` in that file (the endpoint mapping is in its header comment) and change that one line. The UI already awaits replies, shows typing only while a request is in flight, and shows the "nothing was saved" error if a send fails. A test fails if `whatsapp-demo.tsx` imports the engine directly. The film stays scripted and labelled. `demo-engine.ts` can be deleted once nothing but the film uses it and the film's frames are frozen to data.
 
