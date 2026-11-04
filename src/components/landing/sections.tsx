@@ -160,8 +160,9 @@ export function Try() {
               <p className={label}>Your turn</p>
               <h2 className="mt-6 text-[44px] leading-[0.98] tracking-[-0.03em] lg:text-[72px]">Send Kobo a line.</h2>
               <p className="mt-6 max-w-[44ch] font-sans text-[16px] leading-[1.6] text-ink-2">
-                Tap a message to send it, or type your own. This preview runs a scripted demo book with
-                sample customers, using the real message formats.
+                Tap a message to send it, or type your own. This is the live engine: a real AI reads your
+                message and a real ledger records it, in a private demo session with sample customers that
+                other visitors never see.
               </p>
             </>
           }

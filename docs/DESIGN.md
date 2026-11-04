@@ -25,7 +25,7 @@ The owner judged v2 generic (a phone in a coloured box, as in the WhatsForm and 
 4. **Serif for the record, sans for the chatter.** Geist Serif sets headlines, names and every amount (the book). Geist Sans sets UI, captions and WhatsApp's own interface (the conversation).
 5. **Numbers are the headline.** The safety section is a typographic poster: "₦3,800 *or* ₦38,000?" at 104–140px on graphite.
 6. **Box only real objects.** The phone and the book are the only framed things. Everything else is white space and hairlines (1px, ink at 12–15%). No feature cards, no notched cards, no bento.
-7. **Honest.** The film is labelled "Scripted film · sample data · real message formats". The interactive section says it runs a scripted demo book.
+7. **Honest.** The film is labelled "Scripted film · sample data · real message formats". The interactive section says it is the live engine (real AI, real ledger, a private demo session with sample customers that other visitors never see); that sentence is only true while the server has its model configured and working.
 
 **Landing order** (`src/components/landing/sections.tsx`):
 1. Quiet nav: the [k]obo logo, text links, a graphite "Try it" pill.
