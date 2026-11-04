@@ -2,72 +2,101 @@
 
 **you sell. kobo remembers.** WhatsApp bookkeeping for Nigerian market traders.
 
-[Demo video — coming soon](#demo-video) · [Try it in 60 seconds](#try-it-in-60-seconds)
-
-> **Current `main` status:** setup scaffold only. The judge chat, WhatsApp integration, AI and ledger are not yet on `main`; there is no verified public landing URL. The walkthrough and architecture below describe the intended integrated experience, not a live demo on this branch.
+[Try Kobo](https://trykobo.xyz) · [Demo video — coming soon](#demo-video) · [Judging evidence](docs/JUDGING.md)
 
 ## Try it in 60 seconds
 
-**Coming after integration and deployment:** open **[landing URL — to be supplied](#try-it-in-60-seconds)** → select **“Your turn”** → try a message such as:
+1. Open **[trykobo.xyz](https://trykobo.xyz)** and select **Your turn**.
+2. Use one of the six suggestions on the site, or type one yourself:
+   - `I buy 5 bag rice from Alhaji, 290k`
+   - `Mama Chidi carry rice 45k, she pay 20k, remain Friday`
+   - `Bayo pay me three eight`
+   - `Who dey owe me`
+   - `How market today?`
+   - `Show Mama Chidi book`
+3. Review any proposed entry. Choose **Save** only if it says what you intended; edit or cancel otherwise. Try the ambiguous `three eight` example: Kobo asks whether it means ₦3,800 or ₦38,000 instead of guessing.
 
-- Pidgin: `I sell rice to Ada for 5,000 naira, she never pay.`
-- English: `Ada bought rice on credit for 5,000 naira.`
-- Follow up: `Who owes me?`
+**Your turn runs the real bookkeeping engine** in a private, isolated demo session with fictional seeded data. Use fictional information, not real customer records. AI replies have usage limits. The landing-page film is a scripted demonstration; Your turn is the interactive path.
 
-These are synthetic examples, not real customer records. The intended flow is to review the proposed entry and confirm it before it is saved. Judges are intended to use the web chat: WhatsApp test numbers can only reach approved numbers. The planned web and WhatsApp channels use the same bookkeeping engine; this is not yet an integrated experience on `main`.
+WhatsApp is live on Meta's **test number**: the owner sent a text and received the real reply “Nobody owes you right now” through the deployed webhook. Meta test numbers reach only approved recipients, so **judges should use the website**. This is a single owner-verified text test, not a broad WhatsApp reliability claim.
 
 ## What Kobo does
 
-Everything below is **coming to `main`**, not available in this checkout:
+- Turns a trader's text into a reviewable bookkeeping proposal; no money-changing entry is saved until the trader confirms it.
+- Shows who owes money, customer history and a daily summary. It can prepare reminders and draft messages; a draft is not an automatically sent WhatsApp reminder.
+- Supports notebook photo import and voice notes: **built and offline-tested; not yet verified live**. Review extracted names and amounts before saving.
 
-- Talk or type a sale; review it before saving.
-- Ask who owes you and get payment reminders with drafted messages.
-- Import a notebook photo and get a daily summary.
+## Meta models and the boundary
 
-Some pieces exist on feature branches; branch code is not evidence that the complete judge journey is deployed or works end to end.
+**AI interprets, trader confirms, code calculates.**
 
-## How Meta's models fit
+- **Live text:** Meta **Muse Spark Open**, through Vercel AI Gateway, interprets messages using validated tool calls. See [`src/server/model-provider.ts`](src/server/model-provider.ts), [`src/server/tool-calls.ts`](src/server/tool-calls.ts) and [`src/server/service.ts`](src/server/service.ts). Some explicit commands are handled deterministically without a model call.
+- **Notebook photos — built and offline-tested; not yet verified live:** Muse Spark Open reads submitted images through a validated tool-call boundary: [`src/server/notebook.ts`](src/server/notebook.ts), [`src/server/service.ts`](src/server/service.ts).
+- **Voice notes — built and offline-tested; not yet verified live:** Meta **Muse Voice Transcribe** transcribes audio, using the trader's own customer names as keyword hints. See [`src/server/voice/index.ts`](src/server/voice/index.ts) and [`src/server/channels/runtime.ts`](src/server/channels/runtime.ts). A voice transcript alone cannot confirm a save.
+- **Deterministic money:** [`src/core/ledger.ts`](src/core/ledger.ts) and [`src/server/service.ts`](src/server/service.ts) calculate balances; [`src/server/ledger-store.ts`](src/server/ledger-store.ts) enforces the confirmation and ledger boundary.
 
-These integrations are **not on `main`**. The linked paths refer to feature branches:
+## Evidence: live extraction evaluation
 
-- **Muse Voice:** the [voice adapter](https://github.com/emmaGH1/kobo/blob/channels/src/server/voice/index.ts) transcribes voice notes and accepts keyword hints; [channel runtime](https://github.com/emmaGH1/kobo/blob/channels/src/server/channels/runtime.ts) supplies the trader's customer names and explicitly configured, owner-scoped product names as hints.
-- **Muse Spark:** the core [model provider](https://github.com/emmaGH1/kobo/blob/core/src/server/model-provider.ts) and [tool definitions](https://github.com/emmaGH1/kobo/blob/core/src/server/tool-calls.ts) support extracting stated facts via tool calling. Notebook photo reading is **coming**; it is not implemented on `main` or evidenced by the core branch here.
-- **Maths is code, not the model:** [ledger calculations](https://github.com/emmaGH1/kobo/blob/core/src/core/ledger.ts) and the [bookkeeping service](https://github.com/emmaGH1/kobo/blob/core/src/server/service.ts) calculate amounts and balances deterministically.
+The latest documented live run passed **23 of 25 synthetic Pidgin/English cases (92.0%)**, with two failures and no errors. It was one run using in-memory databases and no confirmations. Results vary between runs; the failure causes were not captured. This is a small extraction check, **not a production accuracy or safety benchmark**. See [`docs/LIVE_EVAL_RESULTS.md`](docs/LIVE_EVAL_RESULTS.md).
 
-## Live extraction evaluation
-
-The latest documented live run on `core` passed **23 of 25 synthetic Pidgin/English cases (92.0%)**, with two failures and no errors. It was a single run with in-memory databases and no confirmations; results vary and this is **not** a production accuracy or safety benchmark. See [the authoritative results and caveats on core](https://github.com/emmaGH1/kobo/blob/core/docs/LIVE_EVAL_RESULTS.md).
-
-## Intended architecture
-
-This is the target flow, not a claim that it exists on `main`. Voice transcription precedes text interpretation; a ledger write follows explicit confirmation.
+## Architecture
 
 ```mermaid
 flowchart LR
-    W[WhatsApp / web] --> H[handleMessage]
-    W -. voice notes .-> V[Muse Voice]
-    V --> H
-    H --> S[Muse Spark: extraction]
-    S --> R[Trader review and confirmation]
-    R --> L[Append-only ledger]
+  W[WhatsApp text / web chat] --> H[handleMessage]
+  V[Voice note: offline-tested] -. Muse Voice transcription .-> H
+  N[Notebook photo: offline-tested] -. Muse Spark extraction .-> R
+  H --> S[Muse Spark Open: validated tool calls]
+  S --> R[Trader review and confirmation]
+  R --> L[Append-only ledger: integer kobo]
+  L --> C[Deterministic balances and summaries]
 ```
+
+## Built during the hackathon
+
+Built from scratch during **26 October–4 November 2026** for the **Meta Global AI Developer Hackathon**, **Indie Developer** track, **Build for Your World** problem statement. The owner confirms nothing was pre-existing. The repository history records these milestones (the first commit visible in this repository is dated 31 October):
+
+- **31 October:** scaffold and append-only, confirmation-gated ledger ([`2195a62`](https://github.com/emmaGH1/kobo/commit/2195a62), [`d65296f`](https://github.com/emmaGH1/kobo/commit/d65296f)).
+- **1–2 November:** design direction, model tool-call boundary, voice adapter and WhatsApp channel ([`db1f01f`](https://github.com/emmaGH1/kobo/commit/db1f01f), [`5599239`](https://github.com/emmaGH1/kobo/commit/5599239), [`8526766`](https://github.com/emmaGH1/kobo/commit/8526766), [`021eac5`](https://github.com/emmaGH1/kobo/commit/021eac5)).
+- **2–3 November:** isolated real-engine demo, notebook import, reminders and Your turn integration ([`7d8f705`](https://github.com/emmaGH1/kobo/commit/7d8f705), [`998c295`](https://github.com/emmaGH1/kobo/commit/998c295), [`56bf551`](https://github.com/emmaGH1/kobo/commit/56bf551), [`8b02a8a`](https://github.com/emmaGH1/kobo/commit/8b02a8a)).
+- **4 November:** live-engine copy, fixes, privacy and data-deletion pages ([`c8c3d7f`](https://github.com/emmaGH1/kobo/commit/c8c3d7f), [`5aabcb6`](https://github.com/emmaGH1/kobo/commit/5aabcb6), [`ec5d8f2`](https://github.com/emmaGH1/kobo/commit/ec5d8f2)).
 
 ## Run it yourself
 
-This starts the **setup placeholder**, not the judge chat. Prerequisites: Node.js 22 and pnpm 11.11.0. For future server-side voice processing, install FFmpeg and FFprobe as well.
+Requires Node.js 22, pnpm 11.11.0 and, for voice processing, FFmpeg and FFprobe. A model gateway key is required for real AI extraction; model requests may incur charges. The clone needs access to the repository.
 
 ```sh
 git clone https://github.com/emmaGH1/kobo.git
 cd kobo
 git checkout main
+corepack enable
+corepack prepare pnpm@11.11.0 --activate
 pnpm install --frozen-lockfile
 cp .env.example .env.local
-pnpm dev
 ```
 
-Open <http://localhost:3000>. The placeholder needs no secrets. `.env.example` lists `MODEL_API_KEY`, `OWNER_PASSCODE`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_VERIFY_TOKEN`, and `WHATSAPP_APP_SECRET` as empty placeholders for future integrations. Keep actual values private and never commit `.env.local`.
+Edit `.env.local` privately. For the real text engine via Vercel AI Gateway set `MODEL_BASE_URL=https://ai-gateway.vercel.sh/v1`, `MODEL_ID=meta/muse-spark-open` and set `MODEL_API_KEY` to your gateway key. Never commit or share secrets. The default `.env.example` points at direct Meta instead; gateway credentials and direct Meta voice credentials may not be interchangeable.
 
-Checks for this checkout:
+```sh
+pnpm dev
+# Open http://localhost:3000 and choose Your turn.
+```
+
+`.env.example` documents every option:
+
+| Purpose | Variables |
+|---|---|
+| Text model | `MODEL_BASE_URL`, `MODEL_ID`, `MODEL_API_KEY` |
+| Voice | `VOICE_API_KEY`, `VOICE_PRODUCT_NAMES_JSON` (optional per-owner product hints) |
+| Owner login | `OWNER_PASSCODE` (at least 12 characters) |
+| Storage | `KOBO_DB_PATH`, `KOBO_AUDIO_DIR` (optional; defaults are private local paths) |
+| Demo | `KOBO_DEMO_DAILY_CAP`, `KOBO_TRUST_PROXY_IP` (only enable behind the documented trusted proxy) |
+| Reminder scheduler | `KOBO_REMINDER_CRON_TOKEN` |
+| WhatsApp | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_GRAPH_VERSION`, `WHATSAPP_OWNER_MAP_JSON` |
+
+WhatsApp needs Meta setup, an approved test recipient and public HTTPS; see [`docs/WHATSAPP-SETUP.md`](docs/WHATSAPP-SETUP.md). Local demo use does not require WhatsApp credentials. Voice and notebook live behavior has not yet been verified.
+
+Checks:
 
 ```sh
 pnpm typecheck
@@ -76,9 +105,9 @@ pnpm test
 pnpm build
 ```
 
-## Safety principles
+## Safety and privacy
 
-The intended ledger uses **integer kobo**, is **append-only**, and saves no money-changing action without explicit confirmation. These are project requirements and are not yet implemented on `main`; see [agent rules](AGENTS.md) for the full invariants.
+Money is **integer kobo**; the ledger is **append-only**, with corrections as new events. Money-changing actions require explicit confirmation of the current pending review. Ambiguous amounts are clarified, never silently guessed. Confirmation gates financial writes, **not all storage**: submitted text and pending reviews can be stored before confirmation. See the [privacy policy](https://trykobo.xyz/privacy) and [data deletion instructions](https://trykobo.xyz/data-deletion).
 
 ## Demo video
 
