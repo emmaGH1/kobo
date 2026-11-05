@@ -26,14 +26,51 @@ async function graph(path: string, body?: unknown, transport: typeof fetch = fet
   if (!res.ok) throw Error('WhatsApp request failed');
   return res.json();
 }
-/** Full typed review is sent first; interactive options are an additional convenience. */
+// Conservative UTF-16 limits also fit when Meta counts Unicode code points. IDs must
+// fit our inbound schema (100), even though Graph permits longer opaque IDs.
+const field = (max: number) => z.string().min(1).max(max).refine(s => !!s.trim() && s.isWellFormed());
+const choiceId = field(100).refine(s => s === s.trim());
+const uniqueIds = (items: { id: string }[]) => new Set(items.map(item => item.id)).size === items.length;
+const controlsSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('buttons'), footer: field(60).optional(), buttons: z.array(z.object({ id: choiceId, title: field(20) })).min(1).max(3).refine(uniqueIds).refine(items => new Set(items.map(item => item.title)).size === items.length) }),
+  z.object({ kind: z.literal('list'), footer: field(60).optional(), listButton: field(20).default('Choose'), rows: z.array(z.object({ id: choiceId, title: field(24), description: field(72).optional() })).min(1).max(10).refine(uniqueIds) }),
+]);
+/** Keep ordinary grapheme clusters intact, including emoji/combining sequences.
+ * An exceptional cluster larger than a whole message is split at code points instead.
+ */
+function textChunks(text: string): string[] {
+  const chunks: string[] = [];
+  let chunk = '';
+  for (const { segment } of new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)) {
+    for (const part of segment.length <= 4096 ? [segment] : Array.from(segment)) {
+      if (chunk.length + part.length > 4096) { chunks.push(chunk); chunk = ''; }
+      chunk += part;
+    }
+  }
+  if (chunk) chunks.push(chunk);
+  return chunks;
+}
+/** replyText is the complete typed equivalent; ui.body may already be truncated.
+ * Never repeat that review, trim its facts, shorten IDs/labels or drop excess rows.
+ * Invalid controls fall back to the contract's complete typed-choice equivalent.
+ */
 export function outgoing(to: string, reply: MessageReply): object[] {
   const base = { messaging_product: 'whatsapp', recipient_type: 'individual', to };
-  const messages: object[] = [];
-  for (let i = 0; i < reply.replyText.length; i += 4000) messages.push({ ...base, type: 'text', text: { body: reply.replyText.slice(i,i+4000) } });
-  const ui = reply.interactive;
-  if (ui?.kind === 'buttons' && ui.buttons?.length) messages.push({ ...base, type: 'interactive', interactive: { type: 'button', body: { text: ui.body.slice(0,1024) }, ...(ui.footer ? { footer: { text: ui.footer.slice(0,60) } } : {}), action: { buttons: ui.buttons.slice(0,3).map(b => ({ type: 'reply', reply: { id: b.id, title: b.title.slice(0,20) } })) } } });
-  if (ui?.kind === 'list' && ui.rows?.length) messages.push({ ...base, type: 'interactive', interactive: { type: 'list', body: { text: ui.body.slice(0,1024) }, action: { button: (ui.listButton || 'Choose').slice(0,20), sections: [{ rows: ui.rows.slice(0,10).map(r => ({ ...r, title: r.title.slice(0,24), description: r.description?.slice(0,72) })) }] } } });
+  const controls = controlsSchema.safeParse(reply.interactive);
+  const fits = !!reply.replyText.trim() && reply.replyText.length <= 1024;
+  const messages: object[] = fits && controls.success ? [] : textChunks(reply.replyText).map(body => ({ ...base, type: 'text', text: { body } }));
+  if (!controls.success) return messages;
+  const ui = controls.data;
+  // The typed reply already carries review/question footers. Don't repeat them.
+  const footer = ui.footer && !reply.replyText.includes(ui.footer) ? { footer: { text: ui.footer } } : {};
+  messages.push({ ...base, type: 'interactive', interactive: {
+    type: ui.kind === 'buttons' ? 'button' : 'list',
+    body: { text: fits ? reply.replyText : 'Choose an option for the reply above.' },
+    ...footer,
+    action: ui.kind === 'buttons'
+      ? { buttons: ui.buttons.map(button => ({ type: 'reply', reply: button })) }
+      : { button: ui.listButton, sections: [{ rows: ui.rows }] },
+  } });
   return messages;
 }
 export async function downloadAudio(id: string, transport: typeof fetch = fetch): Promise<Uint8Array> {
