@@ -24,6 +24,13 @@ CREATE TABLE IF NOT EXISTS sender_prefs (
  language TEXT NOT NULL CHECK(language IN ('en','pg')), explicit_choice INTEGER NOT NULL,
  PRIMARY KEY(owner_id, channel, sender_id)
 );
+/** One-turn, short-lived reference only; never inferred from debtor lists or pending transactions. */
+CREATE TABLE IF NOT EXISTS recent_customer_context (
+ owner_id TEXT NOT NULL, channel TEXT NOT NULL, sender_id TEXT NOT NULL,
+ customer_id TEXT, mentioned_at INTEGER NOT NULL, turn_token TEXT NOT NULL,
+ PRIMARY KEY(owner_id, channel, sender_id),
+ FOREIGN KEY(owner_id, customer_id) REFERENCES customers(owner_id, id)
+);
 CREATE TABLE IF NOT EXISTS ledger_events (
  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES owners(id), customer_id TEXT NOT NULL,
  kind TEXT NOT NULL CHECK(kind IN ('sale','payment','opening_debt','reversal')),
