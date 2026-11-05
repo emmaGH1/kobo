@@ -2,7 +2,7 @@
 
 **you sell. kobo remembers.** WhatsApp bookkeeping for Nigerian market traders.
 
-[Try Kobo](https://trykobo.xyz) · [Demo video — coming soon](#demo-video) · [Judging evidence](docs/JUDGING.md)
+[Try Kobo](https://trykobo.xyz) · [Watch the demo (2:20)](https://youtu.be/z2GGQftPRh8) · [Judging evidence](docs/JUDGING.md)
 
 ## Try it in 60 seconds
 
@@ -111,4 +111,8 @@ Money is **integer kobo**; the ledger is **append-only**, with corrections as ne
 
 ## Demo video
 
-Link coming soon.
+**[Watch on YouTube (2:20)](https://youtu.be/z2GGQftPRh8)**. Opens with stock market footage. The voice note scene uses a voice actor. Every Kobo reply shown follows the live bot's real format.
+
+## Contributors
+
+Built solo by **Emmanuel** ([@_HEISEMMA](https://x.com/_HEISEMMA)) during the Meta Global AI Developer Hackathon (31 Oct to 5 Nov 2026), with AI coding assistants.
