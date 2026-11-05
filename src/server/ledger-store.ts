@@ -67,10 +67,13 @@ export class LedgerStore {
   customers(ownerId: string): Customer[] {
     return this.sqlite.prepare('SELECT id, owner_id AS ownerId, name FROM customers WHERE owner_id=? ORDER BY name').all(ownerId) as Customer[];
   }
-  findCustomer(ownerId: string, name: string): Customer | undefined {
-    const matches = this.sqlite.prepare(`SELECT c.id,c.owner_id AS ownerId,c.name FROM customers c
+  findCustomers(ownerId: string, name: string): Customer[] {
+    return this.sqlite.prepare(`SELECT c.id,c.owner_id AS ownerId,c.name FROM customers c
       WHERE c.owner_id=? AND (c.name=? COLLATE NOCASE OR c.id IN
       (SELECT customer_id FROM customer_aliases WHERE owner_id=? AND alias=? COLLATE NOCASE))`).all(ownerId, name, ownerId, name) as Customer[];
+  }
+  findCustomer(ownerId: string, name: string): Customer | undefined {
+    const matches = this.findCustomers(ownerId, name);
     // A name and another customer's alias can collide: never choose arbitrarily.
     return matches.length === 1 ? matches[0] : undefined;
   }

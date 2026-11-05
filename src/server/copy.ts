@@ -218,6 +218,15 @@ export function draftedReminder(l:Language,name:string,amount:number,date:string
   return [pick(l,`Copy this and send it to ${name}:`,`Copy am send to ${name}:`),pick(l,`> Good morning ${name}. A small reminder that the ${formatNaira(amount)} balance for your credit purchase was due on ${lagosDay(Date.parse(`${date}T07:00:00Z`))}. Thank you.`,`> Good morning ${name}. Small reminder say the ${formatNaira(amount)} balance for wetin you carry dey due on ${lagosDay(Date.parse(`${date}T07:00:00Z`))}. Thank you, God bless.`),'',pick(l,'You send it. Nothing goes out without you.','Na you go send am. Nothing go out without you.')].join('\n');
 }
 
+/** Natural-language drafts use the current saved total, not an inferred item or due date.
+ * Keep design 4.11's intro/footer; generic balance wording is intentional when those facts are absent. */
+export function outstandingDraftText(l: Language, name: string, amount: number): string {
+  return [pick(l, `Copy this and send it to ${name}:`, `Copy am send to ${name}:`),
+    pick(l, `> Hello ${name}. A small reminder about your outstanding balance of ${formatNaira(amount)}. Please let me know when you can pay. Thank you.`,
+      `> Hello ${name}. Small reminder say you still get ${formatNaira(amount)} balance to pay. Abeg let me know when you fit pay. Thank you, God bless.`),
+    '', pick(l, 'You send it. Nothing goes out without you.', 'Na you go send am. Nothing go out without you.')].join('\n');
+}
+
 // ---- 4.7 errors and edge states ----
 export const errors = {
   down: (l: Language) => pick(l, 'Something went wrong on my side. *Nothing was saved.* Please try again shortly.', 'Something spoil for my side. *I never save anything.* Try again small time.'),

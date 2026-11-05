@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Reminders } from './reminders';
+import { ReminderDrafts } from './reminder-draft';
 import { Inventory } from './inventory';
 import { resolveDueDate, paymentPromise, dateOptions, noDate, dateAnswerShape } from './due-date';
 import { extractNotebook, notebookImage } from './notebook';
@@ -209,14 +210,17 @@ export class Service implements BookkeepingService {
   }
   /** Exact name or alias first; otherwise every customer whose name contains the typed words. */
   private lookupCustomers(typed: string): Customer[] {
-    const exact = this.store.findCustomer(this.ownerId, typed);
-    if (exact) return [exact];
+    const exact = this.store.findCustomers(this.ownerId, typed);
+    if (exact.length) return exact;
     const words = typed.toLocaleLowerCase().split(/\s+/).filter(Boolean);
     return this.store.customers(this.ownerId).filter(c => words.every(w => c.name.toLocaleLowerCase().split(/[\s()]+/).some(n => n.startsWith(w))));
   }
-  private historyFor(typed: string, lang: Language): MessageReply {
+  private historyFor(typed: string, lang: Language, input: MessageInput, turnToken: string): MessageReply {
     const found = this.lookupCustomers(typed.trim());
-    if (found.length === 1) return this.historyReply(found[0], lang);
+    if (found.length === 1) {
+      new ReminderDrafts(this.store, this.ownerId).remember(input, found[0], turnToken);
+      return this.historyReply(found[0], lang);
+    }
     if (!found.length) return { replyText: lang === 'pg' ? 'I no see that customer.' : 'Customer not found.' };
     const bal = balances(this.store.events(this.ownerId));
     const rows = found.slice(0, 10).map(c => ({ id: `customer:${c.id}`, title: c.name.length <= 24 ? c.name : `${c.name.slice(0, 23)}…`, description: copy.owesDescription(lang, bal[c.id] ?? 0) }));
@@ -281,6 +285,7 @@ export class Service implements BookkeepingService {
   /** Trusted upload adapter only. Images stay in memory, metadata stripped, no client paths/URLs. */
   async handleNotebook(input: {channel:'web'|'whatsapp';senderId:string;bytes:Uint8Array;mime:unknown}):Promise<MessageReply> {
     this.check(input);
+    new ReminderDrafts(this.store, this.ownerId).take(input);
     const lang=this.storedLanguage(input.channel,input.senderId);
     const image=notebookImage(input.bytes,input.mime);
     const key=`notebook:${input.channel}:${input.senderId}:${image.digest}`;
@@ -314,9 +319,14 @@ export class Service implements BookkeepingService {
     this.check(input);
     if (input.audioPath || !input.text?.trim() || input.text.length > 4000) throw new Error('Only bounded text is supported');
     const text = input.text.trim();
+    const drafts = new ReminderDrafts(this.store, this.ownerId);
+    const turn = drafts.take(input);
     const switched = copy.languageCommand(text);
     if (switched) { this.store.setLanguage(this.ownerId, input.channel, input.senderId, switched, true); return { replyText: copy.languageSet(switched) }; }
     const lang = this.resolveLanguage(input.channel, input.senderId, text);
+    // Unsent drafts are independent reads, never answers to a pending money question.
+    const reminderDraft = drafts.reply(text, turn.customerId, lang);
+    if (reminderDraft) return reminderDraft;
     const current = this.store.current(this.ownerId, input.channel, input.senderId);
     if (current.length > 1) return { replyText: copy.errors.twoDrafts(lang) };
     const p = current[0];
@@ -348,9 +358,9 @@ export class Service implements BookkeepingService {
     if(/^(?:insights|this week|weekly summary)\??$/i.test(text))return this.insightsReply(lang);
     if (/^(?:how market(?: today)?|day summary|daily summary|summary|my book today)\??$/i.test(text)) return this.summaryReply(lang);
     const who = /^(?:show(?: me)?\s+)?(.+?)\s+(?:full\s+)?(?:history|book)$/i.exec(text)?.[1] ?? /^(?:show me\s+)?(?:full\s+)?history\s+(?:of\s+|for\s+)?(.+)$/i.exec(text)?.[1];
-    if (who) return this.historyFor(who.replace(/^(?:me\s+)/i, ''), lang);
+    if (who) return this.historyFor(who.replace(/^(?:me\s+)/i, ''), lang, input, turn.token);
     const days = /^(?:how many days (.+?) dey owe me|how (?:many days|long) (?:has )?(.+?) (?:owed|owe)(?: me)?)\??$/i.exec(text);
-    if (days) return this.historyFor(days[1] ?? days[2], lang);
+    if (days) return this.historyFor(days[1] ?? days[2], lang, input, turn.token);
     const movement=/^stock (in|out)\s*:\s*([^:\n]{1,100})\s*:\s*([^:\n]{1,30})\s*:\s*(\d+)(?:\s*:\s*reorder\s+(\d+))?$/i.exec(text);
     if(movement) {
       const draft:PendingDraft={ownerId:this.ownerId,channel:input.channel,senderId:input.senderId,idempotencyKey:randomUUID(),rawInput:text,entries:[{kind:'stock_movement',stockName:movement[2].trim(),stockUnit:movement[3].trim(),quantityDelta:Number(movement[4])*(movement[1].toLowerCase()==='in'?1:-1),...(movement[5]!==undefined?{reorderAt:Number(movement[5])}:{})}]};
@@ -417,6 +427,8 @@ export class Service implements BookkeepingService {
     if (call.name === 'get_balance') {
       const c = this.store.findCustomer(this.ownerId, call.args.customer_name);
       if (!c) return { replyText: lang === 'pg' ? 'I no see that customer.' : 'Customer not found.' };
+      // Model-selected or hallucinated names alone must not establish conversational reference.
+      drafts.rememberBalance(input, text, c, turn.token);
       return { replyText: copy.balanceText(lang, c.name, balances(this.store.events(this.ownerId))[c.id] ?? 0) };
     }
     if (call.name === 'daily_summary') return this.summaryReply(lang);
@@ -486,6 +498,7 @@ export class Service implements BookkeepingService {
   }
   async resolveClarification(input: ClarificationInput): Promise<MessageReply> {
     this.check(input);
+    new ReminderDrafts(this.store, this.ownerId).take(input);
     const lang = this.storedLanguage(input.channel, input.senderId);
     const current = this.store.current(this.ownerId, input.channel, input.senderId);
     const p = current[0];
@@ -504,6 +517,8 @@ export class Service implements BookkeepingService {
     this.check(input);
     const lang = this.storedLanguage(input.channel, input.senderId);
     const id = input.id;
+    const drafts = new ReminderDrafts(this.store, this.ownerId);
+    const turn = drafts.take(input);
     if (id === 'query:debtors') return this.debtorsReply(lang);
     const reminder = new RegExp(`^reminder:(${UUID}):(draft|paid|later)$`).exec(id);
     if(reminder) {
@@ -522,6 +537,7 @@ export class Service implements BookkeepingService {
     const customerId = new RegExp(`^customer:(${UUID})$`).exec(id)?.[1];
     if (customerId) {
       const customer = this.store.customers(this.ownerId).find(c => c.id === customerId);
+      if (customer) drafts.remember(input, customer, turn.token);
       return customer ? this.historyReply(customer, lang) : { replyText: lang === 'pg' ? 'I no see that customer.' : 'Customer not found.' };
     }
     const simple = new RegExp(`^(save|edit|cancel):(${UUID})$`).exec(id);
@@ -551,6 +567,7 @@ export class Service implements BookkeepingService {
   }
   async confirm(input: PendingActionInput): Promise<MessageReply> {
     this.check(input);
+    new ReminderDrafts(this.store, this.ownerId).take(input);
     const events = this.store.confirm(this.ownerId, input.pendingId, input.channel, input.senderId);
     const lang = this.storedLanguage(input.channel, input.senderId);
     const info = this.store.confirmation(this.ownerId, input.pendingId);
@@ -568,13 +585,16 @@ export class Service implements BookkeepingService {
   }
   async edit(input: EditPendingInput): Promise<MessageReply> {
     this.check(input);
+    new ReminderDrafts(this.store, this.ownerId).take(input);
     if (input.audioPath) throw new Error('Audio is not supported');
     this.store.setStatus(this.ownerId, input.pendingId, input.channel, input.senderId, 'editing');
     if (input.text?.trim()) return this.handleMessage(input);
     return { replyText: copy.editPrompt(this.storedLanguage(input.channel, input.senderId)) };
   }
   async cancel(input: PendingActionInput): Promise<MessageReply> {
-    this.check(input); this.store.setStatus(this.ownerId, input.pendingId, input.channel, input.senderId, 'cancelled');
+    this.check(input);
+    new ReminderDrafts(this.store, this.ownerId).take(input);
+    this.store.setStatus(this.ownerId, input.pendingId, input.channel, input.senderId, 'cancelled');
     return { replyText: copy.cancelled(this.storedLanguage(input.channel, input.senderId)) };
   }
 }
