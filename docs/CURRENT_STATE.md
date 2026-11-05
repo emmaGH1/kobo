@@ -16,6 +16,15 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Natural-language unsent reminder drafts (2026-11-05)
+Implementation **6f0c40242193dc137c54b69ff5da02eee7fcfdcd**, `core` from **86b39c8**. Fetched/inspected `origin/main` **07970a0**; existing core/server/API/db code matched, so no integration merge needed for this fix. Main-only privacy/docs changes left alone. No merge/deploy/production access; unrelated `AGENTS.md` preserved unstaged.
+
+English/Pidgin draft/write/compose message/reminder requests now bypass model balance/debtor fallback and pending-question answering. Named customers resolve only inside the owner, preserving name/alias collisions; unknown/ambiguous/no-outstanding targets ask rather than invent. Unsent copy uses the current deterministic integer-kobo saved total, design 4.11 intro/footer, no invented due date/shop/item, no send claim and no `wa.me` (no stored customer number). Existing financial/pending/evidence data and ordinary balance/debtors queries remain unchanged.
+
+Pronouns require an explicit single-customer supported balance/history read or row selection in the same owner+channel+sender, **next core turn only, <5 minutes**. Lists/transactions/unknown/model-only references do not qualify; intervening messages/actions, stale/future contexts and overlap invalidate. Persisted context uses an additive `recent_customer_context` metadata table and per-turn token to fence slow model completions; no transcript/phone is stored. The grammar is deliberately bounded; outside it, use a full saved customer name and repeat the draft request. No bare-name/number draft continuation or general memory. No new background retention cleanup; existing private-data retention limits still apply.
+
+**317 offline tests passed, 1 opt-in live test skipped; typecheck/lint/build/diff-check passed**, with the existing metadataBase build warning. 45 new regressions cover the reported exact request, pronouns, owner isolation, stale/overlap/alias collisions, zero/credit/latest balance, unchanged money/pending/evidence and real WhatsApp dispatch/runtime/voice-wrapper routing with **mocked transcription/downloads, no real audio**. No provider calls or customer sends in draft tests; no paid/live API calls or production/private customer data. Offline proof only, not live voice/WhatsApp accuracy. See newest HANDOVER for exact behavior, grammar, schema and remaining limits. Native-speaker Pidgin review and separately approved merge/deploy/live acceptance remain open.
+
 ### Duplicate WhatsApp replies fixed offline (2026-11-05)
 Implementation **1feaa64a4636a21b30fe0bb417eef13fec14c400** on `core` from **8382464**. Fetched latest `origin/main` **0c14ec1** safely (10 commits ahead of starting core; WhatsApp renderer/contract unchanged). No merge/rebase/deployment/production calls or sends; unrelated `AGENTS.md` untouched/unstaged.
 
