@@ -1,5 +1,18 @@
 # Session handover
 
+## Core — duplicate WhatsApp reply fix (2026-11-05)
+Implementation **1feaa64a4636a21b30fe0bb417eef13fec14c400** on `core`, based on **8382464798198d16426384fcc186886cf6721043**. Safely fetched origin: latest `origin/main` was **0c14ec135644e1f7d1f6a946023b8628372dc420**, ten commits ahead of the starting core commit, with no difference in the WhatsApp renderer/contract. Fetch only: no merge, rebase, deployment, production inspection/change, message send or live API call. Main's newer privacy/live-voice documentation is not incorporated into this core checkout; preserve it when a separately approved integration happens.
+
+**Behavior:** `replyText` is authoritative and complete; `interactive.body` can already be shortened upstream and is never substituted for it. Valid buttons/list + nonblank reply of at most 1,024 UTF-16 units → **one interactive message**, with the entire reply as its body. No interactive → only full text chunks, each at most 4,096 units. Longer interactive reply → every full text chunk in order, then **one distinct action-only interactive**: `Choose an option for the reply above.` All valid control IDs, labels, descriptions and order are unchanged. A footer already present in the full reply is omitted from the interactive payload; a distinct valid footer is retained for both buttons and lists. Blocked reviews do not gain a Save button.
+
+**Limits/fallback:** 1–3 buttons, titles ≤20; 1–10 list rows, titles ≤24, descriptions ≤72, opener ≤20; footer ≤60. Opaque IDs ≤100 match the existing inbound schema (stricter than Graph); IDs must be unique/nonblank/unpadded, button titles unique. Fields must be nonblank and well-formed Unicode. Invalid/over-limit control metadata falls back to full plain text, relying on the `MessageReply` contract's complete typed-choice equivalent; no control array/ID/label is silently truncated into an altered subset. This renderer cannot reconstruct missing typed options or controls already omitted upstream. UTF-16 counting is conservative for astral text. Text splitting keeps ordinary grapheme clusters (emoji/ZWJ/flags/combining marks) whole and preserves all whitespace; a pathological single grapheme larger than an entire text message is split only at code points, preserving every character without splitting surrogate pairs.
+
+**Verification:** **272 offline tests passed, 1 opt-in live test skipped** (`KOBO_LIVE_EVAL=0 pnpm test`); `pnpm typecheck`, `pnpm lint`, `pnpm build`, `git diff --check` passed. Existing metadataBase localhost build warning remains. New tests cover buttons/lists/no interactive, exact 1,024/1,025/4,096/4,097 boundaries, multi-chunk facts, Unicode boundaries, field/count/ID limits, malformed controls, typed-choice fallback, blocked reviews and immutability. Mocked signed webhook tests assert a single complete short send, full long text + unchanged controls, button AND list choice dispatch, redelivery suppression and quarantine after partial/uncertain sends. All HTTP mocked, in-memory DBs; no actual phone/Graph acceptance claimed.
+
+Owner mapping, authentication, signature verification, pending IDs/version checks, dispatch, ledger and inbox/at-most-once semantics are unchanged. Long replies necessarily use multiple sends; existing uncertainty/crash behavior can still leave partial delivery, with no automatic retry. Live acceptance/merge/deploy remain gated on explicit user approval. The unrelated `AGENTS.md` diff remains untouched and unstaged.
+
+---
+
 ## Core — WhatsApp voice configuration investigation (2026-11-04)
 Implementation checkpoint **6e0dcf8** on `core`; no deployment, production edits, messages or new merge. User explicitly authorized this narrow voice/channel bug investigation.
 

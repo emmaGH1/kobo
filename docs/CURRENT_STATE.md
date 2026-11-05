@@ -16,6 +16,13 @@ No features implemented. No API calls were made and no voice harness files chang
 
 ## Core lane
 
+### Duplicate WhatsApp replies fixed offline (2026-11-05)
+Implementation **1feaa64a4636a21b30fe0bb417eef13fec14c400** on `core` from **8382464**. Fetched latest `origin/main` **0c14ec1** safely (10 commits ahead of starting core; WhatsApp renderer/contract unchanged). No merge/rebase/deployment/production calls or sends; unrelated `AGENTS.md` untouched/unstaged.
+
+Valid buttons/list with full `replyText` ≤1,024 UTF-16 units now sends **one interactive message containing that complete text**, never the potentially shortened UI body plus a duplicate typed review. No interactive sends full plain text only. Longer interactive replies send all text in ≤4,096-unit Unicode-safe chunks, then one distinct action-only interactive carrying every original valid choice. IDs/labels/order unchanged; redundant footer omitted, distinct valid footer retained for buttons/lists. Invalid/oversized controls use the contract's full typed-choice reply rather than truncating rows/titles/IDs. Validation matches button/list/footer field/count limits and the existing 100-unit inbound ID cap. Ordinary grapheme clusters stay intact; exceptional >4,096-unit graphemes split only at code points, without character loss.
+
+**272 offline tests passed, 1 opt-in live test skipped; typecheck/lint/build/diff-check passed**. Tests cover exact size limits, full facts once, Unicode, invalid controls, typed choices, all button/list dispatch IDs, signed receive/redelivery and partial-send quarantine. Existing metadataBase build warning remains. No owner/idempotency/ledger/dispatch changes. Long responses still require multiple sends and retain the existing at-most-once/uncertain-send limitations; malformed upstream metadata relies on complete typed equivalents and missing upstream choices cannot be reconstructed. No live phone proof; await approval before merge/deploy. Exact behavior/limits in the newest HANDOVER entry.
+
 ### WhatsApp voice routing/configuration guard (2026-11-04)
 Implementation **6e0dcf8**, core only; explicitly authorized voice/channel investigation, no deploy/production edits/sends/new merge. Production presence-only configuration inspection confirmed missing `VOICE_API_KEY`, present text gateway key/base/model, no voice endpoint/model overrides; deployed ASR unconditionally fell back to the text key while calling fixed direct Meta ASR. Fix preserves direct/default Meta key fallback but blocks gateway/invalid/insecure/userinfo bases without a dedicated voice key; dedicated voice key has priority. Operational remediation still needs a privately configured Meta-authorized voice key, not just this guard.
 
